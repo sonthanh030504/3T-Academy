@@ -18,8 +18,12 @@ import {
   Building2,
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
-import { AvatarWithFallback } from './BotanicalStickers';
-import { AVATAR_MINH_KHOA, AVATAR_HOANG_NAM, AVATAR_THU_HA } from '../data/mockDatabase';
+import {
+  AvatarWithFallback,
+  AVATAR_MINH_KHOA,
+  AVATAR_HOANG_NAM,
+  AVATAR_THU_HA,
+} from './BotanicalStickers';
 import { profileAndInterviewApi } from '../services/profile-interview.api';
 import { CvScreeningResult } from '../types/domain';
 

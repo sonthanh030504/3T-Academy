@@ -9,14 +9,18 @@ import {
   Lock,
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
-import {
-  SESSION_4_MCQ_QUESTIONS,
-  FINAL_EXAM_25_MCQ_QUESTIONS,
-  toStudentSafePromptConfig,
-  hasStudentPassedFinalExam,
-} from '../data/phase2QuizBank';
-import { assessmentApi } from '../services/assessment.api';
+import { assessmentApi, StudentSafePromptConfigItem } from '../services/assessment.api';
 import { useAsyncQuery } from '../hooks/useAsyncData';
+
+const FALLBACK_SINGLE_QUESTION: StudentSafePromptConfigItem = {
+  number: 1,
+  scenarioTag: 'Câu 1 · Tình huống thực tế',
+  prompt: 'Đang tải đề kiểm tra trắc nghiệm...',
+  options: ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
+  skillCode: 'HYBRID-RAG',
+  skillName: 'Tìm Kiếm Kết Hợp (Từ Khóa & Ngữ Nghĩa)',
+  slideLabel: 'Slide bài giảng',
+};
 
 export const AssessmentRoomView: React.FC<{ assessmentId: string }> = ({ assessmentId }) => {
   const {
@@ -31,10 +35,6 @@ export const AssessmentRoomView: React.FC<{ assessmentId: string }> = ({ assessm
     assessmentId.toLowerCase().includes('final') ||
     assessmentId.toLowerCase().includes('exam');
 
-  const fallbackQuestions = isFinalExamFallback
-    ? FINAL_EXAM_25_MCQ_QUESTIONS
-    : SESSION_4_MCQ_QUESTIONS;
-
   const { data: assessmentPayload } = useAsyncQuery(
     () => assessmentApi.getAssessmentForStudent(assessmentId),
     {
@@ -43,16 +43,19 @@ export const AssessmentRoomView: React.FC<{ assessmentId: string }> = ({ assessm
       title: isFinalExamFallback
         ? 'Bài Thi Tốt Nghiệp Cuối Khóa Kỹ Sư AI Thực Chiến — Khóa K01 (25 câu A, B, C, D)'
         : 'Bài Kiểm Tra Mở Khóa Cuối Buổi Học (10 câu Trắc nghiệm A, B, C, D)',
-      questionCount: fallbackQuestions.length,
+      questionCount: isFinalExamFallback ? 25 : 10,
       timeLimitMinutes: isFinalExamFallback ? 45 : 15,
-      isRetakeLocked: isFinalExamFallback && hasStudentPassedFinalExam(),
-      promptConfig: toStudentSafePromptConfig(fallbackQuestions),
+      isRetakeLocked: false,
+      promptConfig: [FALLBACK_SINGLE_QUESTION],
     },
     [assessmentId]
   );
 
   const isFinalExam = assessmentPayload.isFinalExam;
-  const questions = assessmentPayload.promptConfig;
+  const questions =
+    assessmentPayload.promptConfig.length > 0
+      ? assessmentPayload.promptConfig
+      : [FALLBACK_SINGLE_QUESTION];
 
   const normalizedSessionId = assessmentId.replace(/^quiz-/, '');
   const session =
@@ -63,13 +66,22 @@ export const AssessmentRoomView: React.FC<{ assessmentId: string }> = ({ assessm
   const [currentIdx, setCurrentIdx] = useState<number>(0);
 
   // Selected option index (0=A, 1=B, 2=C, 3=D) per question number
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>(() => {
-    const init: Record<number, number> = {};
-    questions.forEach((q) => {
-      init[q.number] = q.number === 4 ? 1 : 0;
-    });
-    return init;
-  });
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    if (assessmentPayload.promptConfig.length > 1) {
+      setSelectedAnswers((prev) => {
+        if (Object.keys(prev).length >= assessmentPayload.promptConfig.length) {
+          return prev;
+        }
+        const init: Record<number, number> = {};
+        assessmentPayload.promptConfig.forEach((q) => {
+          init[q.number] = q.number === 4 ? 1 : 0;
+        });
+        return init;
+      });
+    }
+  }, [assessmentPayload.promptConfig]);
 
   const [remainingSeconds, setRemainingSeconds] = useState<number>(
     isFinalExam ? 45 * 60 : 15 * 60
@@ -105,14 +117,14 @@ export const AssessmentRoomView: React.FC<{ assessmentId: string }> = ({ assessm
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const alreadyPassedFinal = hasStudentPassedFinalExam();
+      const alreadyPassedFinal = assessmentPayload.isRetakeLocked;
       const result = await assessmentApi.submitAssessmentAttempt(
         assessmentId,
         selectedAnswers
       );
 
       // Update session completion state when passing a session quiz
-      if (!isFinalExam && result.passed) {
+      if (!isFinalExam && result.passed && session) {
         submitSessionQuiz(session.id, [0, 0, 0]);
       }
 
@@ -135,7 +147,7 @@ export const AssessmentRoomView: React.FC<{ assessmentId: string }> = ({ assessm
 
   const currentQuestion = questions[currentIdx] ?? questions[0];
   const answeredCount = Object.keys(selectedAnswers).length;
-  const isLockedFinalRetake = isFinalExam && hasStudentPassedFinalExam();
+  const isLockedFinalRetake = isFinalExam && assessmentPayload.isRetakeLocked;
 
   return (
     <div className="min-h-screen bg-[#F7FBF9] dark:bg-[#090F0C] text-[#0F172A] dark:text-[#ECFDF5] pb-24">

@@ -15,12 +15,15 @@ import {
   INITIAL_ENROLLMENTS,
   INITIAL_CHAT_MESSAGES,
   INITIAL_NOTIFICATIONS,
+  ACADEMY_FAQS,
+  AVATAR_MINH_KHOA,
 } from '../data/mockDatabase';
 import {
   SESSION_4_MCQ_QUESTIONS,
   FINAL_EXAM_25_MCQ_QUESTIONS,
   McqQuestionItem,
   AssessmentPublishStatus,
+  StoredMcqAttemptResult,
   toStudentSafePromptConfig,
   evaluateMcqSubmission,
   loadStoredMcqResult,
@@ -30,12 +33,33 @@ import {
   CvScreeningResult,
   InterviewTargetLevel,
   MockInterviewRecord,
+  DiscussionThread,
+  CohortMaterial,
+  CertificateRecord,
+  OrderReceipt,
+  Cohort,
 } from '../types/domain';
-import { formatScheduleSlots } from '../utils/academyLogic';
+import {
+  formatScheduleSlots,
+  evaluateSessionQuizAndUnlock,
+  updateSessionWatchPosition,
+} from '../utils/academyLogic';
+import { AdminUserAccountItem, EligibleGraduateItem } from '../services/admin.api';
+import { ExamCameraReviewItem } from '../services/teach.api';
 
 // In-memory state for stateful mock backend operations during the session
 let mockUserProfile = structuredClone(INITIAL_USER_PROFILES[0]);
 let mockStudentSkillStates = structuredClone(INITIAL_STUDENT_SKILL_STATES);
+let mockCourses = structuredClone(INITIAL_COURSES);
+let mockCohorts = structuredClone(INITIAL_COHORTS);
+let mockSessions = structuredClone(INITIAL_CLASS_SESSIONS);
+let mockDiscussions = structuredClone(INITIAL_DISCUSSION_THREADS);
+let mockMaterials = structuredClone(INITIAL_COHORT_MATERIALS);
+let mockUpcomingTasks = structuredClone(INITIAL_UPCOMING_TASKS);
+let mockReceipts = structuredClone(INITIAL_RECEIPTS);
+let mockCertificates: Record<string, CertificateRecord> = structuredClone(INITIAL_CERTIFICATES);
+let mockEnrolledCohortIds: string[] = ['cohort-ai-k01', 'cohort-py-k04'];
+
 const mockPaymentTransactions = structuredClone(INITIAL_PAYMENT_TRANSACTIONS);
 const mockAssessments = structuredClone(INITIAL_ASSESSMENTS);
 const mockEnrollments = structuredClone(INITIAL_ENROLLMENTS);
@@ -49,6 +73,122 @@ const mockAssessmentQuestionsMap = new Map<string, McqQuestionItem[]>([
   ['quiz-sess-ai-05', structuredClone(SESSION_4_MCQ_QUESTIONS)],
   ['final-exam-cohort-ai-k01', structuredClone(FINAL_EXAM_25_MCQ_QUESTIONS)],
 ]);
+const mockStoredResultsMap = new Map<string, StoredMcqAttemptResult>();
+const mockPendingOrderCohortMap = new Map<string, string>();
+
+let mockAdminAccounts: AdminUserAccountItem[] = [
+  {
+    id: 'acc-01',
+    fullName: 'Nguyễn Văn An',
+    email: 'an.nguyen.dev@gmail.com',
+    roleCategory: 'Học viên',
+    roleDetail: 'Học viên',
+    cohortAssigned: 'AI-ENG-K01, PY-DATA-K04',
+    locked: false,
+    careerGoal: 'Kỹ sư AI Thực chiến & Backend Python',
+    interviewCredits: 4,
+  },
+  {
+    id: 'acc-02',
+    fullName: 'Trần Bảo Ngọc',
+    email: 'ngoc.tran.ai@gmail.com',
+    roleCategory: 'Học viên',
+    roleDetail: 'Học viên',
+    cohortAssigned: 'AI-ENG-K01',
+    locked: false,
+    careerGoal: 'Chuyên viên Xử lý dữ liệu lớn',
+    interviewCredits: 3,
+  },
+  {
+    id: 'acc-03',
+    fullName: 'TS. Trần Minh Khoa',
+    email: 'khoa.tran@3tacademy.vn',
+    roleCategory: 'Giảng viên',
+    roleDetail: 'Giảng viên Trưởng Khối AI',
+    cohortAssigned: 'AI-ENG-K01, AI-ENG-K02',
+    locked: false,
+    instructorHeadline: 'Giảng viên Trưởng Khối AI & Xử lý ngôn ngữ tự nhiên',
+    instructorOrganization: '3T Academy & ĐH Bách Khoa TP.HCM',
+    instructorYearsOfExperience: 10,
+    instructorExpertiseSummaryMd: 'Nghiên cứu và đào tạo chuyên sâu về LLM, Multi-Agent RAG và ứng dụng AI thực tế.',
+  },
+  {
+    id: 'acc-04',
+    fullName: 'ThS. Nguyễn Thu Hà',
+    email: 'ha.nguyen@3tacademy.vn',
+    roleCategory: 'Giảng viên',
+    roleDetail: 'Giảng viên chuyên môn',
+    cohortAssigned: 'FULLSTACK-AI-K03',
+    locked: false,
+    instructorHeadline: 'Kỹ sư Trưởng Fullstack & Cloud AI Solutions',
+    instructorOrganization: 'FPT Software & 3T Academy',
+    instructorYearsOfExperience: 8,
+    instructorExpertiseSummaryMd: 'Chuyên gia kiến trúc hệ thống đám mây, vi dịch vụ FastAPI và tích hợp mô hình ngôn ngữ lớn.',
+  },
+  {
+    id: 'acc-05',
+    fullName: 'Phạm Thu Trang',
+    email: 'trang.pham.admin@3tacademy.vn',
+    roleCategory: 'Quản trị viên',
+    roleDetail: 'Quản lý Đào tạo & Giáo vụ',
+    cohortAssigned: 'Toàn hệ thống',
+    locked: false,
+  },
+];
+
+let mockEligibleGraduates: EligibleGraduateItem[] = [
+  {
+    id: 'grad-01',
+    studentName: 'Nguyễn Văn An',
+    studentEmail: 'an.nguyen.dev@gmail.com',
+    cohortCode: 'AI-ENG-K01',
+    courseTitle: 'Kỹ Sư AI Thực Chiến: Xây Dựng Hệ Thống RAG & Đa Tác Tử Doanh Nghiệp',
+    completedSessionsText: '6/6 buổi (100%)',
+    finalExamScore: 94,
+    issuedCertCode: 'CERT-3T-2026-8891',
+  },
+  {
+    id: 'grad-02',
+    studentName: 'Trần Bảo Ngọc',
+    studentEmail: 'ngoc.tran.ai@gmail.com',
+    cohortCode: 'AI-ENG-K01',
+    courseTitle: 'Kỹ Sư AI Thực Chiến: Xây Dựng Hệ Thống RAG & Đa Tác Tử Doanh Nghiệp',
+    completedSessionsText: '6/6 buổi (100%)',
+    finalExamScore: 91,
+  },
+  {
+    id: 'grad-03',
+    studentName: 'Lê Quốc Khánh',
+    studentEmail: 'khanh.le.data@gmail.com',
+    cohortCode: 'PY-DATA-K04',
+    courseTitle: 'Phân Tích Dữ Liệu Thực Chiến Với Python, SQL & Tự Động Hóa Báo Cáo',
+    completedSessionsText: '6/6 buổi (100%)',
+    finalExamScore: 88,
+  },
+];
+
+let mockExamReviews: ExamCameraReviewItem[] = [
+  {
+    id: 'rev-01',
+    studentName: 'Lê Quốc Bảo',
+    cohortCode: 'AI-ENG-K01',
+    mcqScore: '22/25 câu đúng (8.8/10 điểm)',
+    cameraFlagReason: 'Rời khỏi khung hình 18 giây ở phút thứ 24',
+    cameraTimestamp: 'Phút 24:12 · Đang làm Câu 15/25',
+    snapshotNote: 'Học viên cúi xuống nhặt bút rơi dưới bàn, không phát hiện thiết bị lạ.',
+    decision: 'PENDING',
+  },
+  {
+    id: 'rev-02',
+    studentName: 'Phạm Hải Đăng',
+    cohortCode: 'AI-ENG-K01',
+    mcqScore: '20/25 câu đúng (8.0/10 điểm)',
+    cameraFlagReason: 'Phát hiện người thứ 2 đi ngang phía sau lưng ở phút thứ 31',
+    cameraTimestamp: 'Phút 31:05 · Đang làm Câu 19/25',
+    snapshotNote: 'Người nhà đi ngang qua phòng trong 4 giây, không giao tiếp hay nhìn vào màn hình.',
+    decision: 'PENDING',
+  },
+];
 
 function parseBodyRecord(body: unknown): Record<string, any> {
   if (!body) return {};
@@ -95,30 +235,78 @@ export async function handleMockRequest<T = any>(
   // ==========================================================================
   if (upperMethod === 'POST' && path === '/auth/login') {
     const email = String(payload.email || mockUserProfile.email);
+    const lowerEmail = email.toLowerCase();
+    const matchedAccount = mockAdminAccounts.find(
+      (a) => a.email.toLowerCase() === lowerEmail
+    );
+
+    const detectedRole = matchedAccount
+      ? matchedAccount.roleCategory === 'Quản trị viên'
+        ? 'ADMIN'
+        : matchedAccount.roleCategory === 'Giảng viên'
+        ? 'INSTRUCTOR'
+        : 'STUDENT'
+      : lowerEmail.includes('admin') || lowerEmail.includes('trang')
+      ? 'ADMIN'
+      : lowerEmail.includes('khoa') ||
+        lowerEmail.includes('teach') ||
+        lowerEmail.includes('instructor') ||
+        lowerEmail.includes('ha.le')
+      ? 'INSTRUCTOR'
+      : mockUserProfile.role || 'STUDENT';
+
+    const detectedName = matchedAccount?.fullName || mockUserProfile.fullName;
+
+    mockUserProfile = {
+      ...mockUserProfile,
+      fullName: detectedName,
+      email,
+      role: detectedRole,
+    };
     return {
       accessToken: `mock-jwt-${Date.now()}`,
       user: {
-        id: mockUserProfile.userId,
-        fullName: mockUserProfile.fullName,
+        id: matchedAccount?.id || mockUserProfile.userId,
+        fullName: detectedName,
         email,
-        role: mockUserProfile.role,
+        role: detectedRole,
       },
     } as T;
   }
 
   if (upperMethod === 'POST' && path === '/auth/register') {
+    const fullName = String(payload.fullName || 'Học viên mới');
+    const email = String(payload.email || 'hocvien@3tacademy.vn');
+    mockUserProfile = {
+      userId: `usr-${Date.now()}`,
+      fullName,
+      email,
+      role: 'STUDENT',
+      bio: 'Học viên Kỹ sư AI Thực chiến tại 3T Academy',
+      careerGoal:
+        'Xây dựng nền tảng vững chắc về Python, SQL và phát triển các hệ thống Trợ lý AI (Hybrid RAG & Multi-Agent) triển khai thực tế tại doanh nghiệp.',
+      interviewCredits: 2,
+      cvParsedData: {
+        projects: [],
+        externalSkills: [],
+      },
+    };
     return {
       accessToken: `mock-jwt-${Date.now()}`,
       user: {
-        id: `usr-${Date.now()}`,
-        fullName: String(payload.fullName || 'Học viên mới'),
-        email: String(payload.email || 'hocvien@3tacademy.vn'),
+        id: mockUserProfile.userId,
+        fullName,
+        email,
         role: 'STUDENT',
       },
     } as T;
   }
 
   if (upperMethod === 'POST' && path === '/auth/google') {
+    mockUserProfile = {
+      ...mockUserProfile,
+      role: 'STUDENT',
+    };
     return {
       accessToken: `mock-google-jwt-${Date.now()}`,
       user: {
@@ -144,7 +332,7 @@ export async function handleMockRequest<T = any>(
   }
 
   // ==========================================================================
-  // 2. CATALOG ROUTES (`/categories`, `/skills`, `/courses`, `/advisor`, `/certificates`)
+  // 2. CATALOG ROUTES (`/categories`, `/skills`, `/courses`, `/cohorts`, `/faqs`, `/advisor`, `/certificates`)
   // ==========================================================================
   if (upperMethod === 'GET' && path === '/categories') {
     return [
@@ -155,7 +343,28 @@ export async function handleMockRequest<T = any>(
   }
 
   if (upperMethod === 'GET' && path === '/skills') {
-    return INITIAL_COURSES.flatMap((c) => c.skills) as T;
+    return mockCourses.flatMap((c) => c.skills) as T;
+  }
+
+  if (upperMethod === 'GET' && path === '/cohorts') {
+    return mockCohorts as T;
+  }
+
+  if (upperMethod === 'GET' && path === '/faqs') {
+    return ACADEMY_FAQS as T;
+  }
+
+  if (upperMethod === 'GET' && path === '/certificates') {
+    const ownCertificates: Record<string, CertificateRecord> = {};
+    for (const [key, cert] of Object.entries(mockCertificates)) {
+      const isOwner =
+        cert.studentName.trim().toLowerCase() === 'nguyễn văn an' ||
+        cert.studentEmail.trim().toLowerCase().startsWith('an.nguyen');
+      if (isOwner) {
+        ownCertificates[key] = cert;
+      }
+    }
+    return ownCertificates as T;
   }
 
   if (upperMethod === 'GET' && path === '/courses') {
@@ -163,13 +372,14 @@ export async function handleMockRequest<T = any>(
     const level = queryParams.get('level') || '';
     const q = (queryParams.get('q') || '').toLowerCase().trim();
 
-    const filtered = INITIAL_COURSES.filter((c) => {
+    const filtered = mockCourses.filter((c) => {
       const matchCat = !category || category === 'ALL' || c.category === category;
       const matchLevel = !level || String(c.difficultyLevel) === level;
       const matchQuery =
         !q ||
         c.title.toLowerCase().includes(q) ||
-        c.shortDescription.toLowerCase().includes(q);
+        c.shortDescription.toLowerCase().includes(q) ||
+        c.skills.some((sk) => sk.name.toLowerCase().includes(q) || sk.code.toLowerCase().includes(q));
       return matchCat && matchLevel && matchQuery;
     });
     return filtered as T;
@@ -178,9 +388,9 @@ export async function handleMockRequest<T = any>(
   if (upperMethod === 'GET' && path.startsWith('/courses/')) {
     const slug = decodeURIComponent(path.replace('/courses/', ''));
     const course =
-      INITIAL_COURSES.find((c) => c.slug === slug || c.id === slug) ??
-      INITIAL_COURSES[0];
-    const cohorts = INITIAL_COHORTS.filter((ch) => ch.courseId === course.id);
+      mockCourses.find((c) => c.slug === slug || c.id === slug) ??
+      mockCourses[0];
+    const cohorts = mockCohorts.filter((ch) => ch.courseId === course.id);
     return {
       course,
       cohorts,
@@ -194,23 +404,68 @@ export async function handleMockRequest<T = any>(
   }
 
   if (upperMethod === 'POST' && path === '/advisor/ask') {
-    const goal = String(payload.goal || payload.message || '');
-    const recommendedCourse = INITIAL_COURSES[0];
-    const recommendedCohort = INITIAL_COHORTS[0];
+    const goal = String(payload.goal || payload.message || '').trim();
+    const background = String(payload.background || '').trim();
+    const lowerGoal = `${goal} ${background}`.toLowerCase();
+
+    let recommendedCourse = mockCourses[0];
+    if (lowerGoal.includes('sql') || lowerGoal.includes('báo cáo') || lowerGoal.includes('bi') || lowerGoal.includes('data')) {
+      recommendedCourse = mockCourses[1] ?? mockCourses[0];
+    } else if (lowerGoal.includes('cloud') || lowerGoal.includes('docker') || lowerGoal.includes('fastapi') || lowerGoal.includes('backend')) {
+      recommendedCourse = mockCourses[2] ?? mockCourses[0];
+    } else if (lowerGoal.includes('agent') || lowerGoal.includes('langgraph')) {
+      recommendedCourse = mockCourses[3] ?? mockCourses[0];
+    }
+
+    const recommendedCohort =
+      mockCohorts.find((c) => c.courseId === recommendedCourse.id) ?? mockCohorts[0];
+
     return {
-      replyText: `Dựa trên mục tiêu "${goal || 'phát triển sự nghiệp công nghệ'}" của bạn, lộ trình phù hợp nhất là khóa "${recommendedCourse.title}" (${recommendedCohort.code}, lịch học ${formatScheduleSlots(recommendedCohort.scheduleSlots)}).`,
+      replyText: `Dựa trên mục tiêu "${goal || 'phát triển sự nghiệp công nghệ'}" của bạn, lộ trình phù hợp nhất là khóa "${recommendedCourse.title}" (${recommendedCohort.code}, lịch học ${formatScheduleSlots(recommendedCohort.scheduleSlots)}). Khóa học giúp bạn xây dựng đồ án thực tế sẵn sàng đưa vào CV ứng tuyển.`,
       recommendedCourseSlug: recommendedCourse.slug,
       recommendedCohortId: recommendedCohort.id,
     } as T;
   }
 
   if (upperMethod === 'GET' && path.startsWith('/certificates/verify/')) {
-    const code = decodeURIComponent(path.replace('/certificates/verify/', '')).toUpperCase();
-    const record =
-      INITIAL_CERTIFICATES[code] ?? Object.values(INITIAL_CERTIFICATES)[0];
+    const code = decodeURIComponent(path.replace('/certificates/verify/', '')).toUpperCase().trim();
+    const matched =
+      mockCertificates[code] ??
+      Object.values(mockCertificates).find((c) => c.certificateCode.toUpperCase() === code) ??
+      null;
+
+    if (!matched) {
+      return {
+        found: false,
+        accessDenied: false,
+        isOwner: false,
+        errorCode: 'NOT_FOUND',
+        message: 'Không tìm thấy mã chứng chỉ này trong danh sách chứng chỉ tốt nghiệp của bạn.',
+        certificate: null,
+      } as T;
+    }
+
+    const isOwner =
+      matched.studentName.trim().toLowerCase() === 'nguyễn văn an' ||
+      matched.studentEmail.trim().toLowerCase().startsWith('an.nguyen');
+
+    if (!isOwner) {
+      return {
+        found: false,
+        accessDenied: true,
+        isOwner: false,
+        errorCode: 'FORBIDDEN_OTHER_STUDENT',
+        message:
+          'Bảo mật thông tin cá nhân: Bạn chỉ được phép tra cứu chứng chỉ tốt nghiệp của chính bản thân mình. Hệ thống từ chối truy cập chứng chỉ của học viên khác để tránh lộ thông tin cá nhân.',
+        certificate: null,
+      } as T;
+    }
+
     return {
-      found: Boolean(INITIAL_CERTIFICATES[code]),
-      certificate: record,
+      found: true,
+      accessDenied: false,
+      isOwner: true,
+      certificate: matched,
     } as T;
   }
 
@@ -220,10 +475,11 @@ export async function handleMockRequest<T = any>(
   if (upperMethod === 'POST' && path === '/orders') {
     const cohortId = String(payload.cohortId || 'cohort-ai-k01');
     const cohort =
-      INITIAL_COHORTS.find(
+      mockCohorts.find(
         (c) => c.id === cohortId || c.code.toLowerCase() === cohortId.toLowerCase()
-      ) ?? INITIAL_COHORTS[0];
+      ) ?? mockCohorts[0];
     const orderCode = 'ET20268891';
+    mockPendingOrderCohortMap.set(orderCode, cohort.id);
     return {
       orderCode,
       cohortId: cohort.id,
@@ -239,7 +495,7 @@ export async function handleMockRequest<T = any>(
   }
 
   if (upperMethod === 'GET' && path === '/orders/my-history') {
-    return INITIAL_RECEIPTS as T;
+    return mockReceipts as T;
   }
 
   if (upperMethod === 'GET' && path.startsWith('/orders/')) {
@@ -258,6 +514,51 @@ export async function handleMockRequest<T = any>(
     const orderCode = String(payload.orderCode || 'ET20268891');
     const transactionRef = `MB-SEPAY-${Date.now().toString().slice(-6)}`;
     const paidAt = 'Vừa xong · Đối soát tự động qua SePay Webhook';
+    const targetCohortId = mockPendingOrderCohortMap.get(orderCode) || 'cohort-ai-k01';
+    const targetCohort =
+      mockCohorts.find((c) => c.id === targetCohortId) ?? mockCohorts[0];
+    const course =
+      mockCourses.find((cr) => cr.id === targetCohort.courseId) ?? mockCourses[0];
+
+    if (!mockEnrolledCohortIds.includes(targetCohort.id)) {
+      mockEnrolledCohortIds = [...mockEnrolledCohortIds, targetCohort.id];
+      mockCohorts = mockCohorts.map((c) =>
+        c.id === targetCohort.id ? { ...c, enrolledCount: c.enrolledCount + 1 } : c
+      );
+    }
+
+    const newReceipt: OrderReceipt = {
+      orderCode,
+      cohortCode: targetCohort.code,
+      courseTitle: course.title,
+      amountVnd: targetCohort.tuitionVnd,
+      paidAt,
+      bankName: 'MBBank — Ngân hàng Quân Đội (Chuyển khoản QR 24/7)',
+      transactionRef,
+    };
+    mockReceipts = [newReceipt, ...mockReceipts.filter((r) => r.orderCode !== orderCode)];
+
+    const existingTxIdx = mockPaymentTransactions.findIndex((tx) => tx.orderCode === orderCode);
+    if (existingTxIdx >= 0) {
+      mockPaymentTransactions[existingTxIdx] = {
+        ...mockPaymentTransactions[existingTxIdx],
+        matchStatus: 'MATCHED',
+        processedAt: paidAt,
+      };
+    } else {
+      mockPaymentTransactions.unshift({
+        id: `tx-${Date.now()}`,
+        orderId: `ord-${Date.now()}`,
+        orderCode,
+        gateway: 'SEPAY_VIETQR',
+        amountVnd: targetCohort.tuitionVnd,
+        transferContent: `${orderCode} ${targetCohort.code}`,
+        referenceNumber: transactionRef,
+        matchStatus: 'MATCHED',
+        processedAt: paidAt,
+      });
+    }
+
     return {
       orderCode,
       status: 'PAID',
@@ -274,23 +575,21 @@ export async function handleMockRequest<T = any>(
   if (upperMethod === 'GET' && path === '/me/dashboard') {
     return {
       liveSession:
-        INITIAL_CLASS_SESSIONS.find((s) => s.status === 'LIVE') ??
-        INITIAL_CLASS_SESSIONS[4],
+        mockSessions.find((s) => s.status === 'LIVE') ??
+        mockSessions[4],
       resumeSession:
-        INITIAL_CLASS_SESSIONS.find((s) => s.sessionOrder === 4) ??
-        INITIAL_CLASS_SESSIONS[3],
-      upcomingTasks: INITIAL_UPCOMING_TASKS,
+        mockSessions.find((s) => s.sessionOrder === 4) ??
+        mockSessions[3],
+      upcomingTasks: mockUpcomingTasks,
       streakDays: 7,
     } as T;
   }
 
   if (upperMethod === 'GET' && path === '/me/enrollments') {
     return {
-      enrolledCohortIds: ['cohort-ai-k01', 'cohort-py-k04'],
-      cohorts: INITIAL_COHORTS.filter((c) =>
-        ['cohort-ai-k01', 'cohort-py-k04'].includes(c.id)
-      ),
-      receipts: INITIAL_RECEIPTS,
+      enrolledCohortIds: mockEnrolledCohortIds,
+      cohorts: mockCohorts.filter((c) => mockEnrolledCohortIds.includes(c.id)),
+      receipts: mockReceipts,
     } as T;
   }
 
@@ -298,19 +597,26 @@ export async function handleMockRequest<T = any>(
   if (upperMethod === 'GET' && cohortWorkspaceMatch) {
     const cohortId = decodeURIComponent(cohortWorkspaceMatch[1]);
     const cohort =
-      INITIAL_COHORTS.find(
+      mockCohorts.find(
         (c) => c.id === cohortId || c.code.toLowerCase() === cohortId.toLowerCase()
-      ) ?? INITIAL_COHORTS[0];
+      ) ?? mockCohorts[0];
     const course =
-      INITIAL_COURSES.find((cr) => cr.id === cohort.courseId) ??
-      INITIAL_COURSES[0];
-    const sessions = INITIAL_CLASS_SESSIONS.filter((s) => s.cohortId === cohort.id);
-    const materials = INITIAL_COHORT_MATERIALS.filter((m) => m.cohortId === cohort.id);
+      mockCourses.find((cr) => cr.id === cohort.courseId) ??
+      mockCourses[0];
+    const sessions = mockSessions.filter((s) => s.cohortId === cohort.id);
+    const materials = mockMaterials.filter((m) => m.cohortId === cohort.id);
+    const finalExamId = `final-exam-${cohort.id}`;
+    const finalExamPassed =
+      Boolean(mockStoredResultsMap.get('final-exam-cohort-ai-k01')?.passed) ||
+      Boolean(mockStoredResultsMap.get(finalExamId)?.passed) ||
+      hasStudentPassedFinalExam();
     return {
       cohort,
       course,
-      sessions: sessions.length > 0 ? sessions : INITIAL_CLASS_SESSIONS,
+      sessions: sessions.length > 0 ? sessions : mockSessions,
       materials,
+      finalExamId: 'final-exam-cohort-ai-k01',
+      finalExamPassed,
     } as T;
   }
 
@@ -318,8 +624,8 @@ export async function handleMockRequest<T = any>(
   if (upperMethod === 'GET' && sessionDetailMatch) {
     const sessionId = decodeURIComponent(sessionDetailMatch[2]);
     const session =
-      INITIAL_CLASS_SESSIONS.find((s) => s.id === sessionId) ??
-      INITIAL_CLASS_SESSIONS[3];
+      mockSessions.find((s) => s.id === sessionId) ??
+      mockSessions[3];
     return {
       session,
       videoUrl:
@@ -361,7 +667,7 @@ export async function handleMockRequest<T = any>(
           slidePage: 22,
         },
       ],
-      attachments: INITIAL_COHORT_MATERIALS,
+      attachments: mockMaterials,
       quizSummary: {
         assessmentId: `quiz-${session.id}`,
         questionCount: SESSION_4_MCQ_QUESTIONS.length,
@@ -369,7 +675,7 @@ export async function handleMockRequest<T = any>(
         isCompleted: session.isCompleted,
         bestScorePercent: session.quizScore,
       },
-      discussions: INITIAL_DISCUSSION_THREADS.filter(
+      discussions: mockDiscussions.filter(
         (d) => d.sessionOrder === session.sessionOrder
       ),
     } as T;
@@ -379,11 +685,44 @@ export async function handleMockRequest<T = any>(
   if (upperMethod === 'PUT' && progressMatch) {
     const sessionId = decodeURIComponent(progressMatch[1]);
     const lastPositionSec = Number(payload.lastPositionSec || 0);
+    let updatedSession = mockSessions.find((s) => s.id === sessionId);
+    if (updatedSession) {
+      updatedSession = updateSessionWatchPosition(updatedSession, lastPositionSec);
+      mockSessions = mockSessions.map((s) =>
+        s.id === sessionId ? updatedSession! : s
+      );
+    }
     return {
       sessionId,
       lastPositionSec,
       savedAt: new Date().toISOString(),
+      updatedSession,
     } as T;
+  }
+
+  const sessionQuizSubmitMatch = path.match(/^\/sessions\/([^/]+)\/quiz-submit$/);
+  if (upperMethod === 'POST' && sessionQuizSubmitMatch) {
+    const sessionId = decodeURIComponent(sessionQuizSubmitMatch[1]);
+    const answers = Array.isArray(payload.answers) ? (payload.answers as number[]) : [];
+    const target = mockSessions.find((s) => s.id === sessionId) ?? mockSessions[0];
+    const evaluation = evaluateSessionQuizAndUnlock(target, answers);
+    mockSessions = mockSessions.map((s) =>
+      s.id === sessionId ? evaluation.updatedSession : s
+    );
+    if (evaluation.passed) {
+      mockUpcomingTasks = mockUpcomingTasks.map((t) =>
+        t.sessionId === sessionId
+          ? {
+              ...t,
+              urgency: 'SAFE',
+              dueText: 'Đã hoàn thành',
+              score: evaluation.scorePercent,
+              statusLabel: `Đã làm xong bài tập (${evaluation.scorePercent}/100) · Hoàn thành buổi học`,
+            }
+          : t
+      );
+    }
+    return evaluation as T;
   }
 
   if (upperMethod === 'POST' && path === '/ai/tutor/ask') {
@@ -421,16 +760,54 @@ export async function handleMockRequest<T = any>(
   if (sessionDiscussionsMatch) {
     const sessionId = decodeURIComponent(sessionDiscussionsMatch[1]);
     if (upperMethod === 'GET') {
-      const session = INITIAL_CLASS_SESSIONS.find((s) => s.id === sessionId);
-      return INITIAL_DISCUSSION_THREADS.filter(
+      const session = mockSessions.find((s) => s.id === sessionId);
+      return mockDiscussions.filter(
         (d) => !session || d.sessionOrder === session.sessionOrder
       ) as T;
     }
     if (upperMethod === 'POST') {
+      const session = mockSessions.find((s) => s.id === sessionId) ?? mockSessions[3];
+      const videoTimestampSec = Number(payload.videoTimestampSec || 0);
+      const mins = Math.floor(videoTimestampSec / 60)
+        .toString()
+        .padStart(2, '0');
+      const secs = Math.floor(videoTimestampSec % 60)
+        .toString()
+        .padStart(2, '0');
+      const timestampLabel = `${mins}:${secs}`;
+      const title = String(payload.title || payload.contentMd || 'Thắc mắc trong buổi học');
+      const bodyText = String(payload.contentMd || title);
+
+      const newThread: DiscussionThread = {
+        id: `disc-${Date.now()}`,
+        cohortId: session.cohortId,
+        sessionOrder: session.sessionOrder,
+        sessionTitle: session.title,
+        timestampLabel,
+        authorName: mockUserProfile.fullName,
+        createdAt: 'Vừa xong',
+        questionTitle: title,
+        questionBody: bodyText,
+        isResolved: true,
+        verifiedByStaff: false,
+        hasAiSuggestion: true,
+        replies: [
+          {
+            id: `rep-ai-${Date.now()}`,
+            authorName: 'Trợ giảng AI 3T (Hỗ trợ 24/7)',
+            authorRole: 'AI_TUTOR',
+            createdAt: 'Tức thì',
+            aiCitationSec: timestampLabel,
+            content: `Trợ giảng AI đã tìm thấy nội dung liên quan tại phút ${timestampLabel} (Trang 8 tài liệu Buổi ${session.sessionOrder}): Với câu hỏi "${title}", bạn nên kết hợp lọc theo lớp học trước rồi mới sắp xếp độ liên quan. Trợ giảng Đặng Hoàng Nam cũng đã nhận được thông báo để vào giải đáp thêm cùng bạn nhé!`,
+          },
+        ],
+      };
+      mockDiscussions = [newThread, ...mockDiscussions];
       return {
-        threadId: `disc-${Date.now()}`,
+        threadId: newThread.id,
         status: 'CREATED',
-        videoTimestampSec: Number(payload.videoTimestampSec || 0),
+        videoTimestampSec,
+        thread: newThread,
       } as T;
     }
   }
@@ -455,6 +832,7 @@ export async function handleMockRequest<T = any>(
       sourceQuestions,
       answers
     );
+    mockStoredResultsMap.set(assessmentId, evaluation);
 
     // Cập nhật điểm `student_skill_states`
     if (evaluation.passed) {
@@ -476,7 +854,44 @@ export async function handleMockRequest<T = any>(
   const resultAssessmentMatch = path.match(/^\/assessments\/([^/]+)\/result$/);
   if (upperMethod === 'GET' && resultAssessmentMatch) {
     const assessmentId = decodeURIComponent(resultAssessmentMatch[1]);
-    return loadStoredMcqResult(assessmentId) as T;
+    const isFinalExam =
+      assessmentId.toLowerCase().includes('final') ||
+      assessmentId.toLowerCase().includes('exam');
+    const sourceQuestions =
+      mockAssessmentQuestionsMap.get(assessmentId) ??
+      (isFinalExam ? FINAL_EXAM_25_MCQ_QUESTIONS : SESSION_4_MCQ_QUESTIONS);
+
+    const storedInMem = mockStoredResultsMap.get(assessmentId);
+    const storedInLocal = loadStoredMcqResult(assessmentId);
+    const stored = storedInMem ?? storedInLocal;
+    if (stored) {
+      return {
+        ...stored,
+        hasStoredAttempt: true,
+        hasPassedFinalExam: hasStudentPassedFinalExam(),
+        questionsWithExplanations: sourceQuestions,
+        submission: stored,
+      } as T;
+    }
+
+    // Fallback default result when viewing result screen directly without prior stored submission
+    const defaultAnswers: Record<number, number> = {};
+    sourceQuestions.forEach((q, idx) => {
+      defaultAnswers[q.number] = idx === 2 ? (q.correctIndex + 1) % 4 : q.correctIndex;
+    });
+    const fallbackResult = evaluateMcqSubmission(
+      assessmentId,
+      isFinalExam,
+      sourceQuestions,
+      defaultAnswers
+    );
+    return {
+      ...fallbackResult,
+      hasStoredAttempt: false,
+      hasPassedFinalExam: hasStudentPassedFinalExam(),
+      questionsWithExplanations: sourceQuestions,
+      submission: fallbackResult,
+    } as T;
   }
 
   const proctoringEventMatch = path.match(/^\/assessments\/([^/]+)\/proctoring-events$/);
@@ -500,6 +915,10 @@ export async function handleMockRequest<T = any>(
       mockAssessmentQuestionsMap.get(assessmentId) ??
       (isFinalExam ? FINAL_EXAM_25_MCQ_QUESTIONS : SESSION_4_MCQ_QUESTIONS);
     const meta = mockAssessments.find((a) => a.id === assessmentId);
+    const passedFinal =
+      Boolean(mockStoredResultsMap.get('final-exam-cohort-ai-k01')?.passed) ||
+      Boolean(mockStoredResultsMap.get(assessmentId)?.passed) ||
+      hasStudentPassedFinalExam();
 
     return {
       assessmentId,
@@ -512,7 +931,8 @@ export async function handleMockRequest<T = any>(
           : 'Bài Kiểm Tra Mở Khóa Cuối Buổi Học (10 câu Trắc nghiệm A, B, C, D)'),
       questionCount: sourceQuestions.length,
       timeLimitMinutes: isFinalExam ? 45 : 15,
-      isRetakeLocked: isFinalExam && hasStudentPassedFinalExam(),
+      isRetakeLocked: isFinalExam && passedFinal,
+      hasPassedFinalExam: passedFinal,
       promptConfig: toStudentSafePromptConfig(sourceQuestions),
     } as T;
   }
@@ -521,51 +941,195 @@ export async function handleMockRequest<T = any>(
   // 6. PROFILE & INTERVIEW ROUTES (`/me/profile-skills`, `/me/cv/upload`, `/interviews/*`)
   // ==========================================================================
   if (upperMethod === 'GET' && path === '/me/profile-skills') {
-    const cv = mockUserProfile.cvParsedData;
+    const cv = mockUserProfile.cvParsedData || { projects: [], externalSkills: [] };
     return {
       userProfile: {
         userId: mockUserProfile.userId,
-        fullName: cv.fullName,
-        headline: cv.headline,
-        email: cv.email,
-        phone: cv.phone,
-        githubUrl: cv.githubUrl,
-        linkedinUrl: cv.linkedinUrl,
-        careerObjective: cv.careerObjective,
-        latestCvFileName: cv.fileName,
-        latestCvUpdatedAt: cv.updatedAt,
+        fullName: cv.fullName || mockUserProfile.fullName || '',
+        headline: cv.headline || mockUserProfile.bio || '',
+        bio: mockUserProfile.bio || cv.headline || '',
+        email: cv.email || mockUserProfile.email || '',
+        phone: cv.phone || '',
+        githubUrl: cv.githubUrl || '',
+        linkedinUrl: cv.linkedinUrl || '',
+        careerObjective: cv.careerObjective || mockUserProfile.careerGoal || '',
+        careerGoal: mockUserProfile.careerGoal || cv.careerObjective || '',
+        latestCvFileName: cv.fileName || 'Chưa tải lên file CV',
+        latestCvUpdatedAt: cv.updatedAt || 'Chưa cập nhật',
         interviewCredits: mockUserProfile.interviewCredits,
         cvParsedData: cv,
       },
       studentSkillStates: mockStudentSkillStates,
-      externalCvSkills: cv.externalSkills,
+      externalCvSkills: cv.externalSkills || [],
     } as T;
   }
 
   if (upperMethod === 'POST' && path === '/me/cv/upload') {
-    const uploadedName = String(payload.fileName || 'CV_Nguyen_Van_An_Updated.pdf');
-    mockUserProfile = {
-      ...mockUserProfile,
-      cvParsedData: {
+    const uploadedName = String(
+      payload.fileName || mockUserProfile.cvParsedData?.fileName || 'CV_Nguyen_Van_An_Updated.pdf'
+    );
+    const updatedAt = 'Hôm nay · Vừa cập nhật';
+
+    if (payload.mode === 'SAVE_RESUME' && payload.resumeData && typeof payload.resumeData === 'object') {
+      const r = payload.resumeData as Record<string, any>;
+      const normalizedProjects = Array.isArray(r.projects)
+        ? r.projects.map((p: any, idx: number) => ({
+            id: String(p.id || `proj-saved-${idx + 1}`),
+            name: String(p.name || ''),
+            role: String(p.role || ''),
+            period: String(p.period || ''),
+            techStack: String(p.techStack || ''),
+            bullets: Array.isArray(p.bullets)
+              ? p.bullets.map(String)
+              : Array.isArray(p.highlights)
+              ? p.highlights.map(String)
+              : [],
+            highlights: Array.isArray(p.bullets)
+              ? p.bullets.map(String)
+              : Array.isArray(p.highlights)
+              ? p.highlights.map(String)
+              : [],
+          }))
+        : mockUserProfile.cvParsedData.projects;
+
+      const normalizedSkills = Array.isArray(r.skills)
+        ? r.skills.map(String)
+        : mockUserProfile.cvParsedData.skills || [];
+
+      const updatedCvParsedData = {
         ...mockUserProfile.cvParsedData,
         fileName: uploadedName,
-        updatedAt: 'Hôm nay · Vừa cập nhật',
-      },
+        updatedAt,
+        fullName: String(r.fullName ?? mockUserProfile.fullName),
+        headline: String(r.headline ?? mockUserProfile.cvParsedData.headline ?? ''),
+        email: String(r.email ?? mockUserProfile.email),
+        phone: String(r.phone ?? mockUserProfile.cvParsedData.phone ?? ''),
+        githubUrl: String(r.githubUrl ?? mockUserProfile.cvParsedData.githubUrl ?? ''),
+        linkedinUrl: String(r.linkedinUrl ?? mockUserProfile.cvParsedData.linkedinUrl ?? ''),
+        careerObjective: String(
+          r.careerObjective ?? mockUserProfile.cvParsedData.careerObjective ?? ''
+        ),
+        skills: normalizedSkills,
+        projects: normalizedProjects,
+        workExperience: Array.isArray(r.workExperience)
+          ? r.workExperience
+          : mockUserProfile.cvParsedData.workExperience || [],
+        education: Array.isArray(r.education)
+          ? r.education
+          : mockUserProfile.cvParsedData.education || [],
+        awardsAndCerts: Array.isArray(r.awardsAndCerts)
+          ? r.awardsAndCerts
+          : mockUserProfile.cvParsedData.awardsAndCerts || [],
+        externalSkills: normalizedSkills.map((sk: string) => ({
+          name: sk,
+          note: 'Cập nhật từ Hồ sơ năng lực cá nhân',
+        })),
+      };
+
+      mockUserProfile = {
+        ...mockUserProfile,
+        fullName: updatedCvParsedData.fullName || mockUserProfile.fullName,
+        email: updatedCvParsedData.email || mockUserProfile.email,
+        bio: updatedCvParsedData.headline || mockUserProfile.bio,
+        careerGoal: updatedCvParsedData.careerObjective || mockUserProfile.careerGoal,
+        cvParsedData: updatedCvParsedData,
+      };
+
+      return {
+        fileName: uploadedName,
+        updatedAt,
+        cvParsedData: mockUserProfile.cvParsedData,
+      } as T;
+    }
+
+    // Mode PARSE_PDF: Trả về dữ liệu AI trích xuất từ file PDF để hiển thị trong Smart Sync Modal
+    // (Chưa ghi đè mù quáng vào hồ sơ hiện tại của học viên)
+    const currentFullName = mockUserProfile.fullName || 'Nguyễn Văn An';
+    const extractedCvData = {
+      fileName: uploadedName,
+      updatedAt,
+      fullName: `${currentFullName} (Bản CV Tiếng Anh: An Nguyen)`,
+      headline: 'Kỹ Sư AI Thực Chiến (AI & RAG Engineer) · Chuyên gia Backend Python',
+      email: mockUserProfile.email || 'an.nguyen.dev@gmail.com',
+      phone: mockUserProfile.cvParsedData?.phone || '0908 123 456',
+      githubUrl: mockUserProfile.cvParsedData?.githubUrl || 'github.com/nguyenvanan-dev',
+      linkedinUrl: mockUserProfile.cvParsedData?.linkedinUrl || 'linkedin.com/in/nguyenvanan',
+      careerObjective:
+        'Kỹ sư AI & Backend Python chuyên sâu về xây dựng kiến trúc Hybrid RAG (PostgreSQL pgvector + BM25), thiết kế hệ thống Đa tác tử (Multi-Agent với LangGraph) và tối ưu hóa độ trễ API FastAPI dưới 500ms cho doanh nghiệp.',
+      skills: [
+        'Python',
+        'FastAPI',
+        'PostgreSQL & SQL',
+        'RAG & Vector Search (pgvector)',
+        'LangGraph & Multi-Agent',
+        'Semantic Caching (Redis)',
+        'Docker & Kubernetes',
+        'CI/CD GitHub Actions',
+        'PyTest',
+      ],
+      projects: [
+        {
+          id: `proj-parsed-${Date.now()}-1`,
+          name: 'Hệ thống Đa tác tử AI Phân tích Báo cáo Tài chính & Cảnh báo Rủi ro',
+          period: '10/2026 – 11/2026',
+          role: 'Lead AI Engineer',
+          techStack: 'Python, FastAPI, LangGraph, PostgreSQL (pgvector), Redis, Docker',
+          bullets: [
+            'Thiết kế luồng phối hợp 3 AI Agents tự động bóc tách bảng cân đối kế toán từ PDF và đối chiếu số liệu bất thường.',
+            'Tích hợp Semantic Cache bằng Redis giúp giảm 45% chi phí gọi LLM API và duy trì tốc độ phản hồi trung bình 620ms.',
+          ],
+          highlights: [
+            'Thiết kế luồng phối hợp 3 AI Agents tự động bóc tách bảng cân đối kế toán từ PDF và đối chiếu số liệu bất thường.',
+            'Tích hợp Semantic Cache bằng Redis giúp giảm 45% chi phí gọi LLM API và duy trì tốc độ phản hồi trung bình 620ms.',
+          ],
+        },
+        ...(mockUserProfile.cvParsedData?.projects || []),
+      ],
+      workExperience: [
+        {
+          id: `exp-parsed-${Date.now()}-1`,
+          company: 'Công ty Giải pháp AI & Dữ liệu CloudViet',
+          position: 'AI & Backend Python Engineer',
+          period: '09/2026 – Hiện tại',
+          summary:
+            'Xây dựng đường ống xử lý tài liệu doanh nghiệp và API tra cứu Hybrid Search trên PostgreSQL pgvector, phục vụ hơn 1.500 nhân sự tra cứu quy trình nội bộ với độ chính xác trích dẫn đạt 94%.',
+        },
+        ...(mockUserProfile.cvParsedData?.workExperience || []),
+      ],
+      education: [
+        {
+          id: `edu-parsed-${Date.now()}-1`,
+          school: 'Trường Đại học Bách Khoa',
+          degree: 'Cử nhân Kỹ thuật Phần mềm — Chuyên ngành Trí tuệ Nhân tạo',
+          period: '2020 – 2024',
+          gpaOrHonors: 'GPA: 3.45 / 4.0 · Đồ án tốt nghiệp loại Xuất sắc (9.5/10)',
+        },
+      ],
+      awardsAndCerts: [
+        {
+          id: `cert-parsed-${Date.now()}-1`,
+          title: 'Giải Nhì Cuộc thi Sáng tạo Ứng dụng AI Doanh nghiệp (AI Hackathon 2026)',
+          issuer: 'Hiệp hội Phần mềm & CNTT Việt Nam',
+          dateOrCode: '10/2026 · Mã giải thưởng: AIH-2026-02',
+          detail: 'Xây dựng giải pháp Trợ lý AI kiểm tra hợp đồng thông minh trong 24 giờ.',
+        },
+        ...(mockUserProfile.cvParsedData?.awardsAndCerts || []),
+      ],
+      externalSkills: [
+        { name: 'LangGraph & Multi-Agent', note: 'Phát hiện mới từ file CV PDF tải lên' },
+        { name: 'Semantic Caching (Redis)', note: 'Phát hiện mới từ file CV PDF tải lên' },
+        { name: 'Docker & Kubernetes', note: 'Phát hiện mới từ file CV PDF tải lên' },
+        { name: 'CI/CD GitHub Actions', note: 'Phát hiện mới từ file CV PDF tải lên' },
+      ],
     };
+
     return {
       fileName: uploadedName,
-      updatedAt: mockUserProfile.cvParsedData.updatedAt,
-      cvParsedData: mockUserProfile.cvParsedData,
+      updatedAt,
+      cvParsedData: extractedCvData,
     } as T;
   }
 
-  /**
-   * Vòng 1 của Phòng Phỏng Vấn (`POST /interviews/screen-cv`):
-   * - Yêu cầu `interviewCredits > 0`, chưa trừ Credit ở vòng này (`creditDeducted: 0`).
-   * - Lấy `cvParsedData` đối chiếu trực tiếp với `jdRawText` để đánh giá đúng 2 nội dung:
-   *   (1) Bố cục, trình bày & cách triển khai ý trong CV (`layoutAndPresentationFeedback`)
-   *   (2) Độ khớp giữa CV với tờ JD mục tiêu (`matchPercent`, `jdMatchEvaluation`, `missingKeywordsOrGaps`)
-   */
   if (upperMethod === 'POST' && path === '/interviews/screen-cv') {
     const rawLevel = String(payload.targetLevel || 'FRESHER');
     const targetLevel: InterviewTargetLevel =
@@ -709,31 +1273,46 @@ export async function handleMockRequest<T = any>(
   if (upperMethod === 'GET' && path === '/teach/schedule') {
     return {
       liveSession:
-        INITIAL_CLASS_SESSIONS.find((s) => s.status === 'LIVE') ??
-        INITIAL_CLASS_SESSIONS[4],
-      upcomingSessions: INITIAL_CLASS_SESSIONS.filter((s) => s.status !== 'REPLAY_READY'),
+        mockSessions.find((s) => s.status === 'LIVE') ??
+        mockSessions[4],
+      upcomingSessions: mockSessions.filter((s) => s.status !== 'REPLAY_READY'),
+      allSessions: mockSessions,
+      examReviews: mockExamReviews,
+      enrollments: mockEnrollments,
+      chatMessages: mockChatMessages,
+      notifications: mockNotifications,
+      discussions: mockDiscussions,
+      materials: mockMaterials,
     } as T;
   }
 
   if (upperMethod === 'GET' && path === '/teach/cohorts') {
-    return INITIAL_COHORTS as T;
+    return mockCohorts as T;
   }
 
   const teachSessionDetailMatch = path.match(
     /^\/teach\/cohorts\/([^/]+)\/sessions\/([^/]+)$/
   );
   if (upperMethod === 'GET' && teachSessionDetailMatch) {
+    const cohortId = decodeURIComponent(teachSessionDetailMatch[1]);
     const sessionId = decodeURIComponent(teachSessionDetailMatch[2]);
     const session =
-      INITIAL_CLASS_SESSIONS.find((s) => s.id === sessionId) ??
-      INITIAL_CLASS_SESSIONS[3];
+      mockSessions.find((s) => s.id === sessionId) ??
+      mockSessions[3];
     const assessmentId = `quiz-${session.id}`;
     const meta = mockAssessments.find((a) => a.id === assessmentId);
     return {
       session,
       questions:
-        mockAssessmentQuestionsMap.get(assessmentId) ?? SESSION_4_MCQ_QUESTIONS,
+        mockAssessmentQuestionsMap.get(assessmentId) ??
+        structuredClone(SESSION_4_MCQ_QUESTIONS),
       publishStatus: (meta?.status ?? 'PUBLISHED') as AssessmentPublishStatus,
+      materials: mockMaterials.filter(
+        (m) => m.cohortId === cohortId && m.sessionOrder === session.sessionOrder
+      ),
+      discussions: mockDiscussions.filter(
+        (d) => d.cohortId === cohortId && d.sessionOrder === session.sessionOrder
+      ),
     } as T;
   }
 
@@ -741,22 +1320,69 @@ export async function handleMockRequest<T = any>(
   if (upperMethod === 'GET' && teachCohortDetailMatch) {
     const cohortId = decodeURIComponent(teachCohortDetailMatch[1]);
     const cohort =
-      INITIAL_COHORTS.find((c) => c.id === cohortId) ?? INITIAL_COHORTS[0];
-    const sessions = INITIAL_CLASS_SESSIONS.filter((s) => s.cohortId === cohort.id);
+      mockCohorts.find((c) => c.id === cohortId) ?? mockCohorts[0];
+    const sessions = mockSessions.filter((s) => s.cohortId === cohort.id);
+    const finalExamId = `final-exam-${cohort.id}`;
+    const finalExamMeta = mockAssessments.find((a) => a.id === finalExamId);
     return {
       cohort,
-      sessions: sessions.length > 0 ? sessions : INITIAL_CLASS_SESSIONS,
-      finalExamQuestions: FINAL_EXAM_25_MCQ_QUESTIONS,
+      sessions: sessions.length > 0 ? sessions : mockSessions,
+      finalExamQuestions:
+        mockAssessmentQuestionsMap.get(finalExamId) ??
+        mockAssessmentQuestionsMap.get('final-exam-cohort-ai-k01') ??
+        structuredClone(FINAL_EXAM_25_MCQ_QUESTIONS),
+      finalExamPublishStatus: (finalExamMeta?.status ?? 'PUBLISHED') as AssessmentPublishStatus,
+      enrollments: mockEnrollments.filter((e) => e.cohortId === cohort.id),
+      discussions: mockDiscussions.filter((d) => d.cohortId === cohort.id),
+      materials: mockMaterials.filter((m) => m.cohortId === cohort.id),
     } as T;
   }
 
   const updateMaterialsMatch = path.match(/^\/teach\/sessions\/([^/]+)\/materials$/);
   if (upperMethod === 'PUT' && updateMaterialsMatch) {
     const sessionId = decodeURIComponent(updateMaterialsMatch[1]);
+    let updatedSession: any;
+    mockSessions = mockSessions.map((s) => {
+      if (s.id !== sessionId) return s;
+      updatedSession = {
+        ...s,
+        ...(payload.title !== undefined ? { title: String(payload.title) } : {}),
+        ...(payload.aiSummaryMd !== undefined
+          ? { aiSummaryMd: String(payload.aiSummaryMd) }
+          : {}),
+        ...(payload.scheduledStart !== undefined
+          ? {
+              scheduledStart: String(payload.scheduledStart),
+              scheduledEnd: String(payload.scheduledStart).replace('19:30', '21:30'),
+            }
+          : {}),
+      };
+      return updatedSession;
+    });
+
+    let addedMaterial: CohortMaterial | undefined;
+    if (payload.materialTitle) {
+      const targetSess =
+        updatedSession ?? mockSessions.find((s) => s.id === sessionId) ?? mockSessions[0];
+      addedMaterial = {
+        id: `mat-${Date.now()}`,
+        cohortId: String(payload.cohortId || targetSess.cohortId),
+        sessionOrder: Number(payload.sessionOrder || targetSess.sessionOrder),
+        title: String(payload.materialTitle),
+        fileType: (payload.fileType as CohortMaterial['fileType']) || 'SLIDE',
+        fileSize: '3.2 MB',
+        updatedAt: 'Vừa tải lên hôm nay',
+        downloadUrl: '#tai-lieu-moi',
+      };
+      mockMaterials = [addedMaterial, ...mockMaterials];
+    }
+
     return {
       sessionId,
       updated: true,
       updatedAt: new Date().toISOString(),
+      session: updatedSession,
+      material: addedMaterial,
     } as T;
   }
 
@@ -814,19 +1440,49 @@ export async function handleMockRequest<T = any>(
   const replyDiscussionMatch = path.match(/^\/teach\/discussions\/([^/]+)\/reply$/);
   if (upperMethod === 'POST' && replyDiscussionMatch) {
     const threadId = decodeURIComponent(replyDiscussionMatch[1]);
+    const content = String(payload.content || '').trim();
+    let updatedThread: DiscussionThread | undefined;
+    mockDiscussions = mockDiscussions.map((th) => {
+      if (th.id !== threadId) return th;
+      updatedThread = {
+        ...th,
+        isResolved: true,
+        verifiedByStaff: true,
+        replies: content
+          ? [
+              ...th.replies,
+              {
+                id: `rep-staff-${Date.now()}`,
+                authorName: 'TS. Trần Minh Khoa (Giảng viên)',
+                authorRole: 'INSTRUCTOR',
+                createdAt: 'Vừa xong',
+                isVerifiedByStaff: true,
+                content,
+              },
+            ]
+          : th.replies,
+      };
+      return updatedThread;
+    });
     return {
       threadId,
       verifiedByStaff: true,
       repliedAt: 'Vừa xong',
+      thread: updatedThread,
     } as T;
   }
 
   const reviewProctoringMatch = path.match(/^\/teach\/exam-reviews\/([^/]+)$/);
   if (upperMethod === 'PUT' && reviewProctoringMatch) {
     const reviewId = decodeURIComponent(reviewProctoringMatch[1]);
+    const decision =
+      payload.decision === 'RETAKE_REQUIRED' ? 'RETAKE_REQUIRED' : 'APPROVED';
+    mockExamReviews = mockExamReviews.map((r) =>
+      r.id === reviewId ? { ...r, decision } : r
+    );
     return {
       reviewId,
-      decision: payload.decision || 'APPROVED',
+      decision,
       updatedAt: new Date().toISOString(),
     } as T;
   }
@@ -866,19 +1522,33 @@ export async function handleMockRequest<T = any>(
   // 8. ADMIN ROUTES (`/admin/*`)
   // ==========================================================================
   if (upperMethod === 'GET' && path === '/admin/overview') {
+    const totalRevenueVnd = mockReceipts.reduce((sum, r) => sum + r.amountVnd, 0);
     return {
-      totalRevenueVnd: 468000000,
-      activeCohortsCount: INITIAL_COHORTS.length,
-      totalStudentsCount: 142,
-      issuedCertificatesCount: Object.keys(INITIAL_CERTIFICATES).length,
-      cohorts: INITIAL_COHORTS,
-      certificates: INITIAL_CERTIFICATES,
+      totalRevenueVnd: Math.max(468000000, totalRevenueVnd),
+      activeCohortsCount: mockCohorts.length,
+      totalStudentsCount: mockCohorts.reduce((acc, c) => acc + c.enrolledCount, 0),
+      issuedCertificatesCount: Object.keys(mockCertificates).length,
+      cohorts: mockCohorts,
+      certificates: mockCertificates,
+      enrollments: mockEnrollments,
+      chatMessages: mockChatMessages,
+      notifications: mockNotifications,
+      accounts: mockAdminAccounts,
+      eligibleGraduates: mockEligibleGraduates,
     } as T;
   }
 
   if (upperMethod === 'POST' && path === '/admin/courses') {
+    const courseId = String(payload.id || `course-${Date.now()}`);
+    const existingIdx = mockCourses.findIndex((c) => c.id === courseId);
+    if (existingIdx >= 0) {
+      mockCourses[existingIdx] = {
+        ...mockCourses[existingIdx],
+        ...payload,
+      };
+    }
     return {
-      courseId: String(payload.id || `course-${Date.now()}`),
+      courseId,
       status: 'SAVED',
       course: payload,
     } as T;
@@ -891,21 +1561,172 @@ export async function handleMockRequest<T = any>(
           { dayOfWeek: 2, startTime: '19:30', endTime: '21:30' },
           { dayOfWeek: 6, startTime: '19:30', endTime: '21:30' },
         ];
+    const isUpdate = Boolean(payload.cohortId);
+    const cohortId = String(payload.cohortId || `cohort-${Date.now()}`);
+
+    let targetCohort: Cohort | undefined;
+    if (isUpdate) {
+      mockCohorts = mockCohorts.map((c) => {
+        if (c.id !== cohortId) return c;
+        targetCohort = {
+          ...c,
+          courseId: String(payload.courseId || c.courseId),
+          code: String(payload.code || c.code),
+          name: String(payload.name || c.name),
+          tuitionVnd: Number(payload.tuitionVnd || c.tuitionVnd),
+          startDate: String(payload.startDate || c.startDate),
+          scheduleSlots,
+        };
+        return targetCohort;
+      });
+    } else {
+      targetCohort = {
+        id: cohortId,
+        courseId: String(payload.courseId || mockCourses[0].id),
+        instructorId: String(payload.instructorId || 'usr-inst-khoa'),
+        code: String(payload.code || 'AI-ENG-K03'),
+        name: String(payload.name || 'Khóa Mới'),
+        curriculumVersion: String(payload.curriculumVersion || 'v2.5'),
+        tuitionVnd: Number(payload.tuitionVnd || 5900000),
+        enrolledCount: 1,
+        enrollmentOpenAt: 'Hôm nay',
+        startDate: String(payload.startDate || '15/12/2026'),
+        endDate: '28/02/2027',
+        scheduleSlots,
+        status: 'OPENING',
+        staff: [
+          {
+            id: `st-inst-${Date.now()}`,
+            role: 'INSTRUCTOR',
+            fullName: String(payload.instructorName || 'TS. Trần Minh Khoa'),
+            headline: 'Giảng viên chính phụ trách lớp',
+            avatarUrl: AVATAR_MINH_KHOA,
+            organization: '3T Academy',
+          },
+        ],
+      };
+      mockCohorts = [targetCohort, ...mockCohorts];
+    }
+
     return {
-      cohortId: String(payload.cohortId || `cohort-${Date.now()}`),
-      status: payload.cohortId ? 'UPDATED' : 'CREATED',
+      cohortId,
+      status: isUpdate ? 'UPDATED' : 'CREATED',
       instructorId: String(payload.instructorId || 'usr-inst-khoa'),
       curriculumVersion: String(payload.curriculumVersion || 'v2.5'),
       scheduleSlots,
+      cohort: targetCohort,
       payload,
     } as T;
   }
 
   if (upperMethod === 'PUT' && path === '/admin/users') {
+    const userId = String(payload.userId || `acc-${Date.now()}`);
+    const existing = mockAdminAccounts.find((a) => a.id === userId);
+    let updatedAccount: AdminUserAccountItem;
+
+    if (existing) {
+      updatedAccount = {
+        ...existing,
+        locked: payload.isActive !== undefined ? !payload.isActive : !existing.locked,
+      };
+      mockAdminAccounts = mockAdminAccounts.map((a) =>
+        a.id === userId ? updatedAccount : a
+      );
+    } else {
+      updatedAccount = {
+        id: userId,
+        fullName: String(payload.fullName || 'Giảng viên mới'),
+        email: String(payload.email || 'staff@3tacademy.vn'),
+        roleCategory:
+          payload.role === 'ADMIN'
+            ? 'Quản trị viên'
+            : payload.role === 'INSTRUCTOR'
+            ? 'Giảng viên'
+            : 'Học viên',
+        roleDetail: String(payload.roleDetail || 'Giảng viên chính'),
+        cohortAssigned: String(payload.cohortAssigned || 'AI-ENG-K02'),
+        locked: payload.isActive === false,
+      };
+      mockAdminAccounts = [updatedAccount, ...mockAdminAccounts];
+    }
+
     return {
-      userId: String(payload.userId || 'usr-student-01'),
+      userId,
       role: payload.role || 'STUDENT',
+      isActive: !updatedAccount.locked,
       updated: true,
+      account: updatedAccount,
+    } as T;
+  }
+
+  if (upperMethod === 'POST' && path === '/admin/accounts') {
+    const email = String(payload.email || '').trim();
+    const password = String(payload.password || '').trim();
+    const role = (payload.role as 'STUDENT' | 'INSTRUCTOR' | 'ADMIN') || 'STUDENT';
+    const fullName = String(payload.fullName || '').trim();
+
+    if (!email) {
+      throw new Error('Email tài khoản không được để trống (accounts.email NOT NULL).');
+    }
+    if (!password) {
+      throw new Error('Mật khẩu không được để trống (accounts.password_hash NOT NULL).');
+    }
+    if (!fullName) {
+      throw new Error('Họ và tên không được để trống (user_profiles.full_name NOT NULL).');
+    }
+    if (role === 'INSTRUCTOR' && !String(payload.instructorHeadline || '').trim()) {
+      throw new Error('Tiêu đề chuyên môn của Giảng viên không được để trống (instructor_profiles.headline NOT NULL).');
+    }
+
+    const newId = `acc-${Date.now()}`;
+    const newAccount: AdminUserAccountItem = {
+      id: newId,
+      fullName,
+      email,
+      roleCategory:
+        role === 'ADMIN'
+          ? 'Quản trị viên'
+          : role === 'INSTRUCTOR'
+          ? 'Giảng viên'
+          : 'Học viên',
+      roleDetail:
+        role === 'ADMIN'
+          ? 'Quản trị viên'
+          : role === 'INSTRUCTOR'
+          ? (String(payload.instructorHeadline || 'Giảng viên chuyên môn').trim())
+          : 'Học viên',
+      cohortAssigned: role === 'ADMIN' ? 'Toàn hệ thống' : 'Chưa phân công lớp',
+      locked: false,
+      avatarUrl: payload.avatarUrl ? String(payload.avatarUrl).trim() : undefined,
+      bio: payload.bio ? String(payload.bio).trim() : undefined,
+      careerGoal: payload.careerGoal ? String(payload.careerGoal).trim() : undefined,
+      interviewCredits:
+        typeof payload.interviewCredits === 'number'
+          ? payload.interviewCredits
+          : role === 'STUDENT'
+          ? 2
+          : 99,
+      instructorHeadline:
+        role === 'INSTRUCTOR' ? String(payload.instructorHeadline || '').trim() : undefined,
+      instructorOrganization:
+        role === 'INSTRUCTOR' && payload.instructorOrganization
+          ? String(payload.instructorOrganization).trim()
+          : undefined,
+      instructorYearsOfExperience:
+        role === 'INSTRUCTOR' && payload.instructorYearsOfExperience
+          ? Number(payload.instructorYearsOfExperience)
+          : undefined,
+      instructorExpertiseSummaryMd:
+        role === 'INSTRUCTOR' && payload.instructorExpertiseSummaryMd
+          ? String(payload.instructorExpertiseSummaryMd).trim()
+          : undefined,
+    };
+
+    mockAdminAccounts = [newAccount, ...mockAdminAccounts];
+
+    return {
+      success: true,
+      account: newAccount,
     } as T;
   }
 
@@ -915,15 +1736,84 @@ export async function handleMockRequest<T = any>(
 
   if (upperMethod === 'POST' && path === '/admin/certificates/issue') {
     const enrollmentIds = Array.isArray(payload.enrollmentIds)
-      ? payload.enrollmentIds
+      ? payload.enrollmentIds.map(String)
       : ['enr-01'];
     mockUserProfile.interviewCredits += 4;
+
+    const certificateCodes: string[] = [];
+    const issuedCertificates: Record<string, CertificateRecord> = {};
+
+    enrollmentIds.forEach((enrId, idx) => {
+      const code = `CERT-3T-2026-${Math.floor(1000 + Math.random() * 9000) + idx}`;
+      certificateCodes.push(code);
+
+      const matchedGrad = mockEligibleGraduates.find(
+        (g) => g.id === enrId || g.studentEmail === enrId || !g.issuedCertCode
+      );
+      const studentName = matchedGrad?.studentName || 'Trần Bảo Ngọc';
+      const studentEmail = matchedGrad?.studentEmail || 'ngoc.tran.ai@gmail.com';
+      const cohortCode = matchedGrad?.cohortCode || 'AI-ENG-K01';
+      const finalScore = matchedGrad?.finalExamScore || 91;
+      const targetCohort =
+        mockCohorts.find((c) => c.code === cohortCode) ?? mockCohorts[0];
+      const course =
+        mockCourses.find((cr) => cr.id === targetCohort.courseId) ?? mockCourses[0];
+
+      const record: CertificateRecord = {
+        certificateCode: code,
+        studentName,
+        studentEmail,
+        courseTitle: course.title,
+        cohortCode: targetCohort.code,
+        issuedAt: 'Hôm nay · Cấp bởi Ban Đào Tạo 3T Academy',
+        verificationSignature: `3T-VERIFIED-${code}`,
+        finalScore,
+        proctoringIntegrity:
+          'Đã hoàn thành đầy đủ các buổi học, dự án thực tế và vượt qua kỳ thi tốt nghiệp cuối khóa',
+        isRevoked: false,
+        skillsMastered: course.skills.map((sk) => ({
+          code: sk.code,
+          name: sk.name,
+          score: finalScore,
+        })),
+      };
+
+      mockCertificates[code] = record;
+      issuedCertificates[code] = record;
+
+      if (matchedGrad) {
+        mockEligibleGraduates = mockEligibleGraduates.map((g) =>
+          g.id === matchedGrad.id ? { ...g, issuedCertCode: code } : g
+        );
+      }
+    });
+
     return {
       issuedCount: enrollmentIds.length,
-      certificateCodes: enrollmentIds.map(
-        () => `CERT-3T-2026-${Math.floor(1000 + Math.random() * 9000)}`
-      ),
+      certificateCodes,
+      issuedCertificates,
       bonusInterviewCreditsAdded: 4,
+    } as T;
+  }
+
+  const revokeCertMatch = path.match(/^\/admin\/certificates\/([^/]+)\/revoke$/);
+  if (upperMethod === 'PUT' && revokeCertMatch) {
+    const certCode = decodeURIComponent(revokeCertMatch[1]);
+    const existing =
+      mockCertificates[certCode] ?? Object.values(mockCertificates)[0];
+    const nextRevoked = !existing.isRevoked;
+    const updated: CertificateRecord = {
+      ...existing,
+      isRevoked: nextRevoked,
+      revokedReason: nextRevoked
+        ? 'Đang tạm khóa hiển thị theo yêu cầu kiểm tra từ Ban Tổ Chức.'
+        : undefined,
+    };
+    mockCertificates[certCode] = updated;
+    return {
+      certificateCode: certCode,
+      isRevoked: nextRevoked,
+      certificate: updated,
     } as T;
   }
 

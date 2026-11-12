@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Target,
   CheckCircle2,
@@ -11,6 +11,7 @@ import {
 import { useAcademy } from '../context/AcademyContext';
 import { calculatePathRecommendation, formatVnd, formatScheduleSlots } from '../utils/academyLogic';
 import { CompetencyVerifiedShield } from '../components/BotanicalStickers';
+import { catalogApi } from '../services/catalog.api';
 
 const DIAGNOSTIC_QUESTIONS = [
   {
@@ -52,12 +53,41 @@ export const OnboardingWizardView: React.FC = () => {
   >('AI_ENGINEER');
   const [answers, setAnswers] = useState<number[]>([1, 0, 2]);
   const [faceCaptured, setFaceCaptured] = useState<boolean>(true);
+  const [advisorResponse, setAdvisorResponse] = useState<{
+    replyText: string;
+    recommendedCourseSlug: string;
+    recommendedCohortId: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const analyzeCareerPath = async () => {
+      const res = await catalogApi.askCareerAdvisor(
+        careerGoal,
+        `Diagnostic answers: ${answers.join(',')}`
+      );
+      if (active) {
+        setAdvisorResponse(res);
+      }
+    };
+    void analyzeCareerPath();
+    return () => {
+      active = false;
+    };
+  }, [careerGoal, answers, step]);
 
   const pathResult = calculatePathRecommendation(careerGoal, answers);
   const recommendedCourse =
-    courses.find((c) => c.slug === pathResult.recommendedCourseSlug) ?? courses[0];
+    courses.find(
+      (c) =>
+        c.slug === (advisorResponse?.recommendedCourseSlug || pathResult.recommendedCourseSlug)
+    ) ?? courses[0];
   const recommendedCohort =
-    cohorts.find((c) => c.code === pathResult.recommendedCohortCode) ?? cohorts[0];
+    cohorts.find(
+      (c) =>
+        c.id === advisorResponse?.recommendedCohortId ||
+        c.code === pathResult.recommendedCohortCode
+    ) ?? cohorts[0];
 
   const handleSelectAnswer = (qIdx: number, optIdx: number) => {
     setAnswers((prev) => {
@@ -383,10 +413,9 @@ export const OnboardingWizardView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setRole('STUDENT');
                   navigate(`/checkout/${recommendedCohort.code}`);
                 }}
-                className="px-5 py-2.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-xs font-semibold cursor-pointer"
+                className="px-5 py-2.5 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-xs font-semibold cursor-pointer shadow-xs"
               >
                 Đăng ký học lớp {recommendedCohort.code}
               </button>
@@ -394,7 +423,6 @@ export const OnboardingWizardView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setRole('STUDENT');
                   navigate('/app');
                 }}
                 className="px-4 py-2.5 rounded-lg bg-white dark:bg-[#111A15] border border-[#E2ECE7] dark:border-[#1E2D24] hover:border-[#10B981] text-xs font-semibold text-[#0F172A] dark:text-[#ECFDF5] cursor-pointer"

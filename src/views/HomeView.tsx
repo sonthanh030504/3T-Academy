@@ -15,12 +15,14 @@ import {
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
 import { formatVnd, formatScheduleSlots } from '../utils/academyLogic';
-import { AvatarWithFallback } from '../components/BotanicalStickers';
 import {
+  AvatarWithFallback,
   AVATAR_MINH_KHOA,
   AVATAR_THU_HA,
   AVATAR_HOANG_NAM,
-} from '../data/mockDatabase';
+} from '../components/BotanicalStickers';
+import { useAsyncData } from '../hooks/useAsyncData';
+import { catalogApi } from '../services/catalog.api';
 
 const WHY_CHOOSE_ACADEMY = [
   {
@@ -51,12 +53,17 @@ const WHY_CHOOSE_ACADEMY = [
 
 export const HomeView: React.FC = () => {
   const {
-    courses,
+    courses: contextCourses,
     cohorts,
     navigate,
     searchQueryGlobal,
     setSearchQueryGlobal,
   } = useAcademy();
+
+  const { data: apiCourses } = useAsyncData(() => catalogApi.getCourses(), []);
+  const { data: apiCategories } = useAsyncData(() => catalogApi.getCategories(), []);
+  void apiCategories;
+  const courses = apiCourses && apiCourses.length > 0 ? apiCourses : contextCourses;
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -429,16 +436,6 @@ export const HomeView: React.FC = () => {
             className="hover:text-[#0F172A] dark:hover:text-white"
           >
             Tư vấn lộ trình
-          </a>
-          <a
-            href="/verify/CERT-3T-2026-8891"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate('/verify/CERT-3T-2026-8891');
-            }}
-            className="hover:text-[#0F172A] dark:hover:text-white"
-          >
-            Tra cứu Chứng chỉ tốt nghiệp
           </a>
         </div>
       </footer>

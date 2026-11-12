@@ -16,16 +16,33 @@ import {
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
 import { AvatarWithFallback } from '../components/BotanicalStickers';
-import {
-  FINAL_EXAM_25_MCQ_QUESTIONS,
-  hasStudentPassedFinalExam,
-} from '../data/phase2QuizBank';
-import { assessmentApi } from '../services/assessment.api';
+import { assessmentApi, StudentSafePromptConfigItem } from '../services/assessment.api';
+import { useAsyncData } from '../hooks/useAsyncData';
 
 type ProctoringState = 'NORMAL' | 'WARNING' | 'ALERT';
 
+const FALLBACK_EXAM_QUESTION: StudentSafePromptConfigItem = {
+  number: 1,
+  scenarioTag: 'Câu 1/25 · Đề thi tốt nghiệp',
+  prompt: 'Đang tải đề thi tốt nghiệp cuối khóa...',
+  options: ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
+  skillCode: 'HYBRID-RAG',
+  skillName: 'Kiến thức tổng hợp toàn khóa',
+  slideLabel: 'Tài liệu ôn tập',
+};
+
 export const ProctoredExamRoomView: React.FC<{ assessmentId: string }> = ({ assessmentId }) => {
   const { issueNewCertificate, setInterviewCredits, navigate } = useAcademy();
+
+  const { data: examPayload } = useAsyncData(
+    () => assessmentApi.getAssessmentForStudent(assessmentId),
+    [assessmentId]
+  );
+
+  const examQuestions: StudentSafePromptConfigItem[] =
+    examPayload?.promptConfig && examPayload.promptConfig.length > 0
+      ? examPayload.promptConfig
+      : [FALLBACK_EXAM_QUESTION];
 
   const [step, setStep] = useState<'CHECKIN' | 'EXAM_ACTIVE'>('CHECKIN');
   const [faceCaptured, setFaceCaptured] = useState<boolean>(true);
@@ -49,14 +66,22 @@ export const ProctoredExamRoomView: React.FC<{ assessmentId: string }> = ({ asse
 
   // 25 Multiple Choice Questions (A, B, C, D)
   const [currentIdx, setCurrentIdx] = useState<number>(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>(() => {
-    const init: Record<number, number> = {};
-    FINAL_EXAM_25_MCQ_QUESTIONS.forEach((q) => {
-      init[q.number] =
-        q.number === 3 || q.number === 12 ? (q.correctIndex + 1) % 4 : q.correctIndex;
-    });
-    return init;
-  });
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    if (examPayload?.promptConfig && examPayload.promptConfig.length > 1) {
+      setSelectedAnswers((prev) => {
+        if (Object.keys(prev).length >= examPayload.promptConfig.length) {
+          return prev;
+        }
+        const init: Record<number, number> = {};
+        examPayload.promptConfig.forEach((q) => {
+          init[q.number] = q.number === 3 || q.number === 12 ? 1 : 0;
+        });
+        return init;
+      });
+    }
+  }, [examPayload]);
 
   const [examSeconds, setExamSeconds] = useState<number>(45 * 60);
 
@@ -123,7 +148,7 @@ export const ProctoredExamRoomView: React.FC<{ assessmentId: string }> = ({ asse
     return `${m}:${s}`;
   };
 
-  const handleTriggerProctorState = (nextState: ProctoringState) => {
+  const handleTriggerProctorState = async (nextState: ProctoringState) => {
     setProctoringState(nextState);
     const now = new Date();
     const stamp = now.toTimeString().slice(0, 8);
@@ -135,10 +160,17 @@ export const ProctoredExamRoomView: React.FC<{ assessmentId: string }> = ({ asse
         : 'Cảnh báo: Phát hiện rời khỏi màn hình thi hoặc có nhiều người trong khung hình. Sự kiện đã được ghi nhận để Giảng viên xem xét.';
 
     setProctorLogs((prev) => [{ time: stamp, state: nextState, text: msg }, ...prev]);
+    const eventType =
+      nextState === 'WARNING'
+        ? 'LOOK_AWAY_WARNING'
+        : nextState === 'ALERT'
+        ? 'TAB_SWITCH_OR_MULTI_FACE_ALERT'
+        : 'CAMERA_NORMAL';
+    await assessmentApi.reportProctoringEvent(assessmentId, eventType, msg);
   };
 
   const handleSubmitFinalExam = async () => {
-    const alreadyPassed = hasStudentPassedFinalExam();
+    const alreadyPassed = Boolean(examPayload?.isRetakeLocked);
     const result = await assessmentApi.submitAssessmentAttempt(
       assessmentId,
       selectedAnswers
@@ -187,7 +219,7 @@ export const ProctoredExamRoomView: React.FC<{ assessmentId: string }> = ({ asse
         };
 
   const StatusIcon = proctorStatusInfo.icon;
-  const currentQuestion = FINAL_EXAM_25_MCQ_QUESTIONS[currentIdx] ?? FINAL_EXAM_25_MCQ_QUESTIONS[0];
+  const currentQuestion = examQuestions[currentIdx] ?? examQuestions[0];
 
   return (
     <div className="min-h-screen bg-[#F7FBF9] dark:bg-[#090F0C] text-[#0F172A] dark:text-[#ECFDF5] pb-28">
@@ -380,7 +412,7 @@ export const ProctoredExamRoomView: React.FC<{ assessmentId: string }> = ({ asse
                   </span>
                 </div>
                 <div className="grid grid-cols-10 sm:grid-cols-13 gap-1.5">
-                  {FINAL_EXAM_25_MCQ_QUESTIONS.map((q, idx) => {
+                  {examQuestions.map((q, idx) => {
                     const chosen = selectedAnswers[q.number] !== undefined;
                     const isCurrent = currentIdx === idx;
                     return (
@@ -465,12 +497,12 @@ export const ProctoredExamRoomView: React.FC<{ assessmentId: string }> = ({ asse
                   </button>
 
                   <div className="flex items-center gap-2.5">
-                    {currentIdx < FINAL_EXAM_25_MCQ_QUESTIONS.length - 1 && (
+                    {currentIdx < examQuestions.length - 1 && (
                       <button
                         type="button"
                         onClick={() =>
                           setCurrentIdx((prev) =>
-                            Math.min(FINAL_EXAM_25_MCQ_QUESTIONS.length - 1, prev + 1)
+                            Math.min(examQuestions.length - 1, prev + 1)
                           )
                         }
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] hover:border-[#10B981] text-xs font-bold cursor-pointer"

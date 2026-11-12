@@ -8,6 +8,7 @@ import {
   UpcomingTaskItem,
   OrderReceipt,
 } from '../types/domain';
+import { QuizEvaluationOutput } from '../utils/academyLogic';
 
 export interface StudentDashboardSummaryResponse {
   liveSession: ClassSession;
@@ -60,6 +61,8 @@ export const learningApi = {
       course: Course;
       sessions: ClassSession[];
       materials: CohortMaterial[];
+      finalExamId?: string;
+      finalExamPassed?: boolean;
     }>(`/cohorts/${encodeURIComponent(cohortId)}/workspace`, {
       method: 'GET',
     }),
@@ -71,11 +74,22 @@ export const learningApi = {
     ),
 
   updateVideoProgress: (sessionId: string, lastPositionSec: number) =>
-    httpRequest<{ sessionId: string; lastPositionSec: number; savedAt: string }>(
-      `/sessions/${encodeURIComponent(sessionId)}/progress`,
+    httpRequest<{
+      sessionId: string;
+      lastPositionSec: number;
+      savedAt: string;
+      updatedSession?: ClassSession;
+    }>(`/sessions/${encodeURIComponent(sessionId)}/progress`, {
+      method: 'PUT',
+      body: JSON.stringify({ lastPositionSec }),
+    }),
+
+  submitSessionQuiz: (sessionId: string, answers: number[]) =>
+    httpRequest<QuizEvaluationOutput>(
+      `/sessions/${encodeURIComponent(sessionId)}/quiz-submit`,
       {
-        method: 'PUT',
-        body: JSON.stringify({ lastPositionSec }),
+        method: 'POST',
+        body: JSON.stringify({ answers }),
       }
     ),
 
@@ -100,13 +114,15 @@ export const learningApi = {
     videoTimestampSec: number,
     title?: string
   ) =>
-    httpRequest<{ threadId: string; status: string; videoTimestampSec: number }>(
-      `/sessions/${encodeURIComponent(sessionId)}/discussions`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ title, contentMd, videoTimestampSec }),
-      }
-    ),
+    httpRequest<{
+      threadId: string;
+      status: string;
+      videoTimestampSec: number;
+      thread?: DiscussionThread;
+    }>(`/sessions/${encodeURIComponent(sessionId)}/discussions`, {
+      method: 'POST',
+      body: JSON.stringify({ title, contentMd, videoTimestampSec }),
+    }),
 };
 
 export const studentLearningApi = learningApi;

@@ -11,11 +11,12 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
-import { ACADEMY_FAQS } from '../data/mockDatabase';
 import {
   AiTutorCompanionSticker,
   CompetencyVerifiedShield,
 } from '../components/BotanicalStickers';
+import { useAsyncData } from '../hooks/useAsyncData';
+import { catalogApi } from '../services/catalog.api';
 
 const ACADEMY_STORY_STEPS = [
   {
@@ -57,6 +58,8 @@ const ACADEMY_STORY_STEPS = [
 
 export const AboutAcademyView: React.FC = () => {
   const { navigate } = useAcademy();
+  const { data: faqsData } = useAsyncData(() => catalogApi.getFaqs(), []);
+  const ACADEMY_FAQS = faqsData ?? [];
   const [openFaqIds, setOpenFaqIds] = useState<string[]>([
     'faq-1',
     'faq-2',

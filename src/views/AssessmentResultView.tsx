@@ -14,11 +14,36 @@ import {
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
 import { CompetencyVerifiedShield } from '../components/BotanicalStickers';
-import {
-  SESSION_4_MCQ_QUESTIONS,
-  FINAL_EXAM_25_MCQ_QUESTIONS,
-  loadStoredMcqResult,
-} from '../data/phase2QuizBank';
+import { assessmentApi, StoredMcqAttemptResult, McqQuestionItem } from '../services/assessment.api';
+import { useAsyncData } from '../hooks/useAsyncData';
+
+const DEFAULT_SUBMISSION: StoredMcqAttemptResult = {
+  assessmentId: 'quiz-sess-k01-04',
+  isFinalExam: false,
+  selectedAnswers: { 1: 0, 2: 0, 3: 0, 4: 1, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 },
+  correctCount: 9,
+  totalQuestions: 10,
+  scoreOutOf10: 9.0,
+  passed: true,
+  submittedAt: 'Vừa nộp xong · Chấm điểm tự động tức thì (0 giây)',
+  updatedSkills: [
+    {
+      code: 'HYBRID-RAG',
+      name: 'Tìm Kiếm Kết Hợp (Từ Khóa & Ngữ Nghĩa)',
+      previousScore: 76,
+      newScore: 84,
+      delta: '+8 điểm',
+    },
+    {
+      code: 'DOC-PARSE',
+      name: 'Bóc Tách Tài Liệu PDF & Bảng Biểu',
+      previousScore: 82,
+      newScore: 88,
+      delta: '+6 điểm',
+    },
+  ],
+  wrongItems: [],
+};
 
 export const AssessmentResultView: React.FC<{ assessmentId: string }> = ({ assessmentId }) => {
   const {
@@ -29,21 +54,30 @@ export const AssessmentResultView: React.FC<{ assessmentId: string }> = ({ asses
     navigate,
   } = useAcademy();
 
-  const isFinalExam =
+  const { data: resultData } = useAsyncData(
+    () => assessmentApi.getAssessmentResult(assessmentId),
+    [assessmentId]
+  );
+
+  const isFinalExamFallback =
     assessmentId.toLowerCase().includes('exam') ||
     assessmentId.toLowerCase().includes('final');
-  const questions = isFinalExam ? FINAL_EXAM_25_MCQ_QUESTIONS : SESSION_4_MCQ_QUESTIONS;
+  const isFinalExam = resultData?.isFinalExam ?? isFinalExamFallback;
+  const questions: McqQuestionItem[] = resultData?.questionsWithExplanations ?? [];
+  const submission: StoredMcqAttemptResult = resultData?.submission ?? {
+    ...DEFAULT_SUBMISSION,
+    assessmentId,
+    isFinalExam,
+  };
 
   const targetSession =
     sessions.find((s) => assessmentId.includes(s.id)) ??
     sessions.find((s) => s.sessionOrder === 4) ??
     sessions[3];
 
-  const submission = loadStoredMcqResult(assessmentId);
-
   // Ensure session is marked completed in context
   useEffect(() => {
-    if (!targetSession.isCompleted) {
+    if (targetSession && !targetSession.isCompleted) {
       submitSessionQuiz(
         targetSession.id,
         targetSession.quizQuestions.map((q) => q.correctIndex)
@@ -140,11 +174,14 @@ export const AssessmentResultView: React.FC<{ assessmentId: string }> = ({ asses
                 <>
                   <button
                     type="button"
-                    onClick={() => navigate('/verify/CERT-3T-2026-8891')}
+                    onClick={() => {
+                      setStudentSidebarTab('CERTIFICATES_ORDERS');
+                      navigate('/app');
+                    }}
                     className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs sm:text-sm font-bold shadow-xs cursor-pointer whitespace-nowrap"
                   >
                     <Award className="w-4 h-4" />
-                    <span>Nhận Chứng Chỉ Tốt Nghiệp Ngay</span>
+                    <span>Xem Bằng Tốt Nghiệp Trong Góc Học Tập</span>
                   </button>
                   <button
                     type="button"

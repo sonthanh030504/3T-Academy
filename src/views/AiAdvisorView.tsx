@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Send, Calendar, Clock, Users, ArrowRight, RotateCcw } from 'lucide-react';
+import { Send, Calendar, Clock, Users, ArrowRight, RotateCcw, LogIn } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
 import { formatVnd, formatScheduleSlots } from '../utils/academyLogic';
 import {
   AiTutorCompanionSticker,
   AvatarWithFallback,
 } from '../components/BotanicalStickers';
+import { catalogApi } from '../services/catalog.api';
 
 interface AdvisorChatTurn {
   id: string;
@@ -22,7 +23,7 @@ const QUICK_PROMPTS = [
 ];
 
 export const AiAdvisorView: React.FC = () => {
-  const { cohorts, courses, navigate } = useAcademy();
+  const { cohorts, courses, navigate, role } = useAcademy();
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [messages, setMessages] = useState<AdvisorChatTurn[]>([
@@ -35,7 +36,7 @@ export const AiAdvisorView: React.FC = () => {
     },
   ]);
 
-  const generateAdvisorReply = (promptText: string) => {
+  const generateAdvisorReply = async (promptText: string) => {
     const userTurn: AdvisorChatTurn = {
       id: `u-${Date.now()}`,
       sender: 'USER',
@@ -46,38 +47,37 @@ export const AiAdvisorView: React.FC = () => {
     setInput('');
     setIsStreaming(true);
 
-    setTimeout(() => {
+    try {
+      const apiRes = await catalogApi.askCareerAdvisor(promptText, 'Học viên 3T Academy');
+      const matchedCohort = cohorts.find((c) => c.id === apiRes.recommendedCohortId);
       const lower = promptText.toLowerCase();
-      let replyText =
-        'Dựa trên nền tảng Python cơ bản và mục tiêu chuyển sang vị trí Kỹ sư AI trong 4 tháng, lộ trình phù hợp nhất cho bạn là tham gia ngay lớp **AI-ENG-2026-K01** (Khai giảng 17/11/2026, học tối Thứ 3 & Thứ 7). Trong 4 buổi đầu, TS. Trần Minh Khoa và Trợ giảng Đặng Hoàng Nam sẽ hướng dẫn bạn cách chuẩn bị dữ liệu và tra cứu tài liệu thông minh trước khi tự tay xây dựng ứng dụng Trợ lý AI hoàn chỉnh nhé.';
-      let recommendedCodes = ['AI-ENG-2026-K01', 'AI-ENG-2026-K02'];
+      let recommendedCodes = matchedCohort
+        ? [matchedCohort.code, 'AI-ENG-2026-K02']
+        : ['AI-ENG-2026-K01', 'AI-ENG-2026-K02'];
 
       if (lower.includes('thứ 4') || lower.includes('chủ nhật') || lower.includes('data')) {
-        replyText =
-          'Nếu bạn ưu tiên lịch học tối Thứ 4 & Chủ Nhật hoặc cuối tuần, mình gợi ý hai lớp khai giảng khớp hoàn toàn với khung giờ của bạn mà không lo trùng lịch: **DATA-AE-2026-K01** (Phân tích dữ liệu thực chiến với SQL & Python — học tối Thứ 4 & Chủ Nhật) và **AI-ENG-2026-K02** (học tối Thứ 5 & Chủ Nhật).';
         recommendedCodes = ['DATA-AE-2026-K01', 'AI-ENG-2026-K02'];
       } else if (lower.includes('so sánh') || lower.includes('swe-cloud')) {
-        replyText =
-          'Lớp **AI-ENG-2026-K01** tập trung vào việc xây dựng ứng dụng Trợ lý AI tra cứu tài liệu nội bộ và trả lời chính xác cho doanh nghiệp, trong khi **SWE-CLOUD-2026-K01** đi sâu vào thiết kế hệ thống Backend chịu tải cao, thanh toán tự động qua mã QR và vận hành trên đám mây. Bạn có thể xem chi tiết cả 2 lớp bên dưới nhé:';
         recommendedCodes = ['AI-ENG-2026-K01', 'SWE-CLOUD-2026-K01'];
       }
 
       const aiTurn: AdvisorChatTurn = {
         id: `ai-${Date.now()}`,
         sender: 'AI',
-        text: replyText,
+        text: apiRes.replyText,
         recommendedCohortCodes: recommendedCodes,
         timestamp: 'Phản hồi tức thời',
       };
       setMessages((prev) => [...prev, aiTurn]);
+    } finally {
       setIsStreaming(false);
-    }, 180);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    generateAdvisorReply(input.trim());
+    void generateAdvisorReply(input.trim());
   };
 
   return (
@@ -222,14 +222,39 @@ export const AiAdvisorView: React.FC = () => {
                               <span className="font-mono text-xs font-bold text-[#0F172A] dark:text-[#ECFDF5]">
                                 {formatVnd(ch.tuitionVnd)}
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => navigate(`/checkout/${ch.code}`)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-[#10B981] hover:bg-[#059669] text-white text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap"
-                              >
-                                <span>Ghi danh ngay</span>
-                                <ArrowRight className="w-3 h-3" />
-                              </button>
+                              {role === 'GUEST' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate('/login')}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#10B981] hover:bg-[#059669] text-white text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shadow-xs"
+                                >
+                                  <LogIn className="w-3.5 h-3.5" />
+                                  <span>Đăng nhập để ghi danh</span>
+                                </button>
+                              ) : role === 'STUDENT' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/checkout/${ch.code}`)}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-[#10B981] hover:bg-[#059669] text-white text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shadow-xs"
+                                >
+                                  <span>Ghi danh ngay</span>
+                                  <ArrowRight className="w-3 h-3" />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const matchedCourse = courses.find((cr) => cr.id === ch.courseId);
+                                    if (matchedCourse) {
+                                      navigate(`/courses/${matchedCourse.slug}?cohort=${ch.code}`);
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap"
+                                >
+                                  <span>Xem chi tiết</span>
+                                  <ArrowRight className="w-3 h-3" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         );

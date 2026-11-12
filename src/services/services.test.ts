@@ -222,5 +222,185 @@ test('Modular API services execute end-to-end via handleMockRequest', async () =
 
   const sepayTxs = await adminApi.getSepayTransactions();
   assert.ok(sepayTxs.length >= 3);
+
+  const adminOverview = await adminApi.getAdminOverview();
+  assert.ok(adminOverview.totalRevenueVnd > 0);
+  assert.ok(adminOverview.accounts.length >= 3);
+  assert.ok(adminOverview.eligibleGraduates.length >= 2);
+
+  // Admin Account Creation (Database schema: accounts, user_profiles, instructor_profiles)
+  const createdStudent = await adminApi.createAccount({
+    email: 'new.student@3tacademy.vn',
+    password: 'Password@123',
+    role: 'STUDENT',
+    fullName: 'Lê Văn Hoàng',
+    careerGoal: 'Kỹ sư AI Thực chiến',
+    interviewCredits: 3,
+  });
+  assert.equal(createdStudent.success, true);
+  assert.equal(createdStudent.account.roleCategory, 'Học viên');
+  assert.equal(createdStudent.account.fullName, 'Lê Văn Hoàng');
+  assert.equal(createdStudent.account.cohortAssigned, 'Chưa phân công lớp');
+
+  const createdInstructor = await adminApi.createAccount({
+    email: 'new.instructor@3tacademy.vn',
+    password: 'Password@123',
+    role: 'INSTRUCTOR',
+    fullName: 'TS. Phan Thanh Bình',
+    instructorHeadline: 'Chuyên gia Thị giác Máy tính & Deep Learning',
+    instructorOrganization: 'Viện Công nghệ Tiên tiến',
+    instructorYearsOfExperience: 9,
+  });
+  assert.equal(createdInstructor.success, true);
+  assert.equal(createdInstructor.account.roleCategory, 'Giảng viên');
+  assert.equal(createdInstructor.account.cohortAssigned, 'Chưa phân công lớp');
+  assert.equal(
+    createdInstructor.account.instructorHeadline,
+    'Chuyên gia Thị giác Máy tính & Deep Learning'
+  );
+
+  await assert.rejects(
+    async () => {
+      await adminApi.createAccount({
+        email: 'invalid.inst@3tacademy.vn',
+        password: 'pass',
+        role: 'INSTRUCTOR',
+        fullName: 'Thiếu Headline',
+      });
+    },
+    /Tiêu đề chuyên môn của Giảng viên không được để trống/
+  );
 });
+
+test('Zero files in src/views, src/components, or src/context import mockDatabase or phase2QuizBank', () => {
+  const dirsToScan = [
+    path.resolve(process.cwd(), 'src/views'),
+    path.resolve(process.cwd(), 'src/components'),
+    path.resolve(process.cwd(), 'src/context'),
+  ];
+
+  for (const dir of dirsToScan) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx'))) {
+        const fullPath = path.join(dir, entry.name);
+        const content = fs.readFileSync(fullPath, 'utf8');
+        assert.equal(
+          content.includes('mockDatabase'),
+          false,
+          `${entry.name} must not import mockDatabase`
+        );
+        assert.equal(
+          content.includes('phase2QuizBank'),
+          false,
+          `${entry.name} must not import phase2QuizBank`
+        );
+      }
+    }
+  }
+});
+
+test('Personal certificate lookup privacy: allows own certificate and blocks other students certificates', async () => {
+  // 1. Own certificate (Nguyễn Văn An — CERT-3T-2026-8891)
+  const ownResult = await catalogApi.verifyCertificate('CERT-3T-2026-8891');
+  assert.equal(ownResult.found, true);
+  assert.equal(ownResult.accessDenied, false);
+  assert.equal(ownResult.isOwner, true);
+  assert.ok(ownResult.certificate);
+  assert.equal(ownResult.certificate?.studentName, 'Nguyễn Văn An');
+
+  // 2. Another student's certificate (Lê Hoàng Mai — CERT-3T-2026-8892) must be blocked
+  const otherStudentResult = await catalogApi.verifyCertificate('CERT-3T-2026-8892');
+  assert.equal(otherStudentResult.found, false);
+  assert.equal(otherStudentResult.accessDenied, true);
+  assert.equal(otherStudentResult.isOwner, false);
+  assert.equal(otherStudentResult.errorCode, 'FORBIDDEN_OTHER_STUDENT');
+  assert.equal(otherStudentResult.certificate, null);
+
+  // 3. Client certificates map only exposes own certificates
+  const myCertsMap = await catalogApi.getCertificates();
+  const certCodes = Object.keys(myCertsMap);
+  assert.ok(certCodes.includes('CERT-3T-2026-8891'));
+  assert.equal(certCodes.includes('CERT-3T-2026-8892'), false);
+  assert.equal(certCodes.includes('CERT-3T-2026-9901'), false);
+});
+
+test('6-block Resume Builder hydration, Smart Sync selection, and Backend save', async () => {
+  const {
+    mapApiProfileToStudentResume,
+    mapParsedCvToStudentResume,
+    applySmartSyncSelection,
+  } = await import('../components/StudentProfileCvWorkspace');
+
+  // 1. Hydrate existing CV from getMyProfileAndSkills()
+  const initialRes = await profileInterviewApi.getMyProfileAndSkills();
+  const hydrated = mapApiProfileToStudentResume(initialRes);
+  assert.equal(hydrated.fullName, 'Nguyễn Văn An');
+  assert.ok(hydrated.skills.length >= 5);
+  assert.ok(hydrated.projects.length >= 2);
+  assert.ok(hydrated.workExperience.length >= 2);
+  assert.ok(hydrated.education.length >= 1);
+  assert.ok(hydrated.awardsAndCerts.length >= 2);
+
+  // 2. Upload PDF CV in PARSE_PDF mode -> does NOT overwrite backend profile before confirmation
+  const parseRes = await profileInterviewApi.uploadAndParseCv('CV_New_Upload_2026.pdf');
+  const parsedFromPdf = mapParsedCvToStudentResume(parseRes.cvParsedData, hydrated);
+  assert.ok(parsedFromPdf.fullName.includes('An Nguyen'));
+  assert.ok(parsedFromPdf.skills.includes('LangGraph & Multi-Agent'));
+
+  const beforeConfirmRes = await profileInterviewApi.getMyProfileAndSkills();
+  assert.equal(beforeConfirmRes.userProfile.fullName, 'Nguyễn Văn An');
+
+  // 3. Apply Smart Sync with default checkboxes (syncFullName: false, others: true)
+  const syncedResume = applySmartSyncSelection(hydrated, parsedFromPdf, {
+    syncFullName: false,
+    syncHeadline: true,
+    syncCareerObjective: true,
+    syncSkills: true,
+    syncProjects: true,
+    syncExperienceAndEdu: true,
+  });
+  assert.equal(syncedResume.fullName, 'Nguyễn Văn An'); // Preserved real name for certificate
+  assert.equal(syncedResume.headline, parsedFromPdf.headline);
+  assert.ok(syncedResume.skills.includes('LangGraph & Multi-Agent'));
+  assert.ok(syncedResume.projects.length > hydrated.projects.length);
+
+  // 4. Save synced resume to backend
+  await profileInterviewApi.uploadAndParseCv('CV_New_Upload_2026.pdf', syncedResume);
+  const afterSaveRes = await profileInterviewApi.getMyProfileAndSkills();
+  assert.equal(afterSaveRes.userProfile.fullName, 'Nguyễn Văn An');
+  assert.equal(afterSaveRes.userProfile.headline, parsedFromPdf.headline);
+  assert.ok(afterSaveRes.userProfile.cvParsedData.skills?.includes('LangGraph & Multi-Agent'));
+
+  // 5. Empty CV hydration for newly registered account
+  const emptyHydrated = mapApiProfileToStudentResume({
+    userProfile: {
+      fullName: 'Trần Minh Quân',
+      headline: '',
+      bio: 'Học viên Kỹ sư AI Thực chiến',
+      email: 'quan.tran@gmail.com',
+      phone: '',
+      githubUrl: '',
+      linkedinUrl: '',
+      careerObjective: '',
+      careerGoal: 'Trở thành AI Engineer sau 4 tháng',
+      latestCvFileName: 'Chưa tải lên file CV',
+      latestCvUpdatedAt: 'Chưa cập nhật',
+      interviewCredits: 2,
+      cvParsedData: { projects: [], externalSkills: [] },
+    },
+    studentSkillStates: [],
+    externalCvSkills: [],
+  });
+  assert.equal(emptyHydrated.fullName, 'Trần Minh Quân');
+  assert.equal(emptyHydrated.headline, 'Học viên Kỹ sư AI Thực chiến');
+  assert.equal(emptyHydrated.careerObjective, 'Trở thành AI Engineer sau 4 tháng');
+  assert.deepEqual(emptyHydrated.skills, []);
+  assert.deepEqual(emptyHydrated.projects, []);
+  assert.deepEqual(emptyHydrated.workExperience, []);
+  assert.deepEqual(emptyHydrated.education, []);
+  assert.deepEqual(emptyHydrated.awardsAndCerts, []);
+});
+
+
 

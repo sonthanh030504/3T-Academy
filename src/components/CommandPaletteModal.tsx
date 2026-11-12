@@ -40,8 +40,7 @@ export const CommandPaletteModal: React.FC = () => {
     { label: 'Danh Mục & Bộ Lọc Khóa Học', path: '/courses' },
     { label: 'Về Học Viện & Câu Hỏi Thường Gặp', path: '/about' },
     { label: 'Trợ Lý Tư Vấn Lộ Trình Học', path: '/advisor' },
-    { label: 'Đóng Học Phí Chuyển Khoản QR Tự Động', path: '/checkout/AI-ENG-2026-K01' },
-    { label: 'Tra Cứu Chứng Chỉ Tốt Nghiệp', path: '/verify/CERT-3T-2026-8891' },
+    { label: 'Bằng Tốt Nghiệp & Học Phí Của Tôi', path: '/app' },
     { label: 'Góc Học Tập Học Viên', path: '/app' },
     { label: 'Hồ sơ của tôi (Resume cá nhân)', path: '/app/profile-cv' },
     { label: 'Luyện phỏng vấn (Duyệt CV & Phỏng vấn giọng nói)', path: '/app/mock-interview' },
@@ -102,7 +101,14 @@ export const CommandPaletteModal: React.FC = () => {
                   <button
                     key={c.id}
                     type="button"
-                    onClick={() => handleSelect(`/checkout/${c.code}`)}
+                    onClick={() => {
+                      const matchedCourse = courses.find((cr) => cr.id === c.courseId);
+                      handleSelect(
+                        matchedCourse
+                          ? `/courses/${matchedCourse.slug}?cohort=${c.code}`
+                          : `/courses`
+                      );
+                    }}
                     className="w-full flex items-center justify-between gap-4 px-3 py-2.5 rounded-lg hover:bg-[#F7FBF9] dark:hover:bg-white/5 text-left transition-colors cursor-pointer"
                   >
                     <div className="min-w-0">

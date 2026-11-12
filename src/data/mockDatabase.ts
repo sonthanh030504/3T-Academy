@@ -25,71 +25,85 @@ export interface FaqItem {
   id: string;
   question: string;
   answer: string;
+  q?: string;
+  a?: string;
 }
 
 export const ACADEMY_FAQS: FaqItem[] = [
   {
     id: 'faq-1',
-    question: '1. Mình đi làm bận rộn, nếu hôm đó kẹt việc không vào học trực tiếp được thì sao?',
+    question: '1. Người đi làm bận rộn, nếu có buổi không thể tham gia học trực tiếp thì sao?',
     answer:
-      'Bạn yên tâm nhé, ngay sau mỗi buổi học hệ thống đều có sẵn bản ghi video nét cao kèm bản tóm tắt các ý chính và phụ đề đầy đủ để bạn xem lại bất cứ lúc nào rảnh.',
+      'Sau mỗi buổi học, học viện đều cập nhật đầy đủ bản ghi video chất lượng cao kèm tóm tắt nội dung chính và tài liệu liên quan. Bạn có thể chủ động xem lại bài giảng vào bất kỳ thời gian nào thuận tiện.',
+    q: '1. Người đi làm bận rộn, nếu có buổi không thể tham gia học trực tiếp thì sao?',
+    a: 'Sau mỗi buổi học, học viện đều cập nhật đầy đủ bản ghi video chất lượng cao kèm tóm tắt nội dung chính và tài liệu liên quan. Bạn có thể chủ động xem lại bài giảng vào bất kỳ thời gian nào thuận tiện.',
   },
   {
     id: 'faq-2',
-    question: '2. Lúc tự học hoặc làm bài tập ở nhà mà bí quá thì hỏi ai?',
+    question: '2. Khi tự học và làm bài tập tại nhà gặp khó khăn kỹ thuật thì nhờ ai hỗ trợ?',
     answer:
-      'Bạn có thể hỏi ngay Trợ giảng AI 24/7 để được chỉ tới đúng phút, đúng giây trong video bài giảng và trang tài liệu liên quan, hoặc để lại câu hỏi ngay tại mốc thời gian đó để Giảng viên phụ trách lớp vào giải đáp tận tình cho bạn nhé.',
+      'Bạn có thể đặt câu hỏi cho Trợ lý học tập để được hướng dẫn đến đúng mốc thời gian trong video và tài liệu bài giảng. Ngoài ra, giảng viên phụ trách lớp sẽ phản hồi chi tiết trong buổi học kế tiếp hoặc trên diễn đàn lớp.',
+    q: '2. Khi tự học và làm bài tập tại nhà gặp khó khăn kỹ thuật thì nhờ ai hỗ trợ?',
+    a: 'Bạn có thể đặt câu hỏi cho Trợ lý học tập để được hướng dẫn đến đúng mốc thời gian trong video và tài liệu bài giảng. Ngoài ra, giảng viên phụ trách lớp sẽ phản hồi chi tiết trong buổi học kế tiếp hoặc trên diễn đàn lớp.',
   },
   {
     id: 'faq-3',
-    question: '3. Mình chưa biết bắt đầu từ khóa nào cho hợp với nền tảng hiện tại?',
+    question: '3. Chưa xác định được khóa học phù hợp với trình độ hiện tại thì nên bắt đầu thế nào?',
     answer:
-      'Bạn chỉ cần bấm vào mục "Tư vấn lộ trình" trên thanh menu, chia sẻ mục tiêu công việc hiện tại của bạn, trợ lý thông minh sẽ gợi ý đúng lộ trình và lớp sắp mở vừa sức nhất với bạn.',
+      'Bạn có thể sử dụng tính năng "Tư vấn lộ trình" trên thanh điều hướng để chia sẻ mục tiêu công việc. Hệ thống sẽ gợi ý khóa học và lịch khai giảng phù hợp nhất với nền tảng hiện tại của bạn.',
+    q: '3. Chưa xác định được khóa học phù hợp với trình độ hiện tại thì nên bắt đầu thế nào?',
+    a: 'Bạn có thể sử dụng tính năng "Tư vấn lộ trình" trên thanh điều hướng để chia sẻ mục tiêu công việc. Hệ thống sẽ gợi ý khóa học và lịch khai giảng phù hợp nhất với nền tảng hiện tại của bạn.',
   },
   {
     id: 'faq-4',
-    question: '4. Đóng học phí xong thì bao lâu mình được vào lớp?',
+    question: '4. Sau khi thanh toán học phí, bao lâu thì tài khoản được kích hoạt vào lớp?',
     answer:
-      'Chỉ mất đúng 3 giây sau khi bạn quét mã QR chuyển khoản ngân hàng là hệ thống tự động mở khóa không gian lớp học, lịch học và toàn bộ kho tài liệu cho bạn ngay lập tức.',
+      'Hệ thống tự động kích hoạt tài khoản ngay sau khi giao dịch chuyển khoản thành công. Phòng học trực tuyến, lịch học chi tiết và toàn bộ học liệu sẽ được mở khóa chỉ trong vài giây.',
+    q: '4. Sau khi thanh toán học phí, bao lâu thì tài khoản được kích hoạt vào lớp?',
+    a: 'Hệ thống tự động kích hoạt tài khoản ngay sau khi giao dịch chuyển khoản thành công. Phòng học trực tuyến, lịch học chi tiết và toàn bộ học liệu sẽ được mở khóa chỉ trong vài giây.',
   },
   {
     id: 'faq-5',
-    question: '5. Làm sao để nhận được Chứng chỉ tốt nghiệp của Học viện?',
+    question: '5. Điều kiện để được cấp Chứng chỉ tốt nghiệp của Học viện là gì?',
     answer:
-      'Bạn chỉ cần hoàn thành các bài tập ngắn sau mỗi buổi học và vượt qua bài thi cuối khóa là sẽ nhận được Chứng chỉ tốt nghiệp có mã QR tra cứu công khai để tự tin đính kèm vào hồ sơ ứng tuyển nhé.',
+      'Học viên cần tham gia học tập, hoàn thành các bài tập kiểm tra ngắn sau mỗi buổi và đạt điểm yêu cầu trong bài thi cuối khóa. Chứng chỉ được cấp kèm mã QR xác thực để bạn thuận tiện bổ sung vào hồ sơ xin việc.',
+    q: '5. Điều kiện để được cấp Chứng chỉ tốt nghiệp của Học viện là gì?',
+    a: 'Học viên cần tham gia học tập, hoàn thành các bài tập kiểm tra ngắn sau mỗi buổi và đạt điểm yêu cầu trong bài thi cuối khóa. Chứng chỉ được cấp kèm mã QR xác thực để bạn thuận tiện bổ sung vào hồ sơ xin việc.',
   },
   {
     id: 'faq-6',
-    question: '6. Trong quá trình học nếu mình vào lớp muộn 10–15 phút thì có theo kịp bài giảng không?',
+    question: '6. Nếu vào lớp muộn 10–15 phút do tan làm trễ thì có theo kịp bài giảng không?',
     answer:
-      'Hoàn toàn kịp bạn nhé! Ngay trong phòng học trực tuyến luôn có nút tóm tắt nhanh: chỉ cần bấm 1 chạm, Trợ lý thông minh sẽ tổng hợp gọn gàng những ý chính thầy vừa giảng trong 10–15 phút trước đó để bạn bắt nhịp cùng cả lớp ngay lập tức.',
+      'Bạn hoàn toàn có thể yên tâm. Trong phòng học trực tuyến có tính năng tóm tắt nhanh nội dung: chỉ cần chọn tính năng tóm tắt, hệ thống sẽ điểm lại các ý chính giảng viên vừa trình bày để bạn bắt nhịp cùng lớp học ngay lập tức.',
+    q: '6. Nếu vào lớp muộn 10–15 phút do tan làm trễ thì có theo kịp bài giảng không?',
+    a: 'Bạn hoàn toàn có thể yên tâm. Trong phòng học trực tuyến có tính năng tóm tắt nhanh nội dung: chỉ cần chọn tính năng tóm tắt, hệ thống sẽ điểm lại các ý chính giảng viên vừa trình bày để bạn bắt nhịp cùng lớp học ngay lập tức.',
   },
 ];
 
 export const WHY_3T_DIFFERENT_ITEMS = [
   {
     number: '01',
-    title: 'Học trực tiếp có lộ trình, không sợ bỏ cuộc giữa chừng',
+    title: 'Học trực tiếp theo lộ trình rõ ràng, duy trì kỷ luật học tập',
     description:
-      'Bạn học theo lớp khai giảng cố định cùng Giảng viên chính và bạn cùng lớp, có lịch học rõ ràng chứ không phải tự bơi một mình với đống video khô khan.',
+      'Học viên tham gia theo từng đợt mở lớp cố định cùng giảng viên chuyên gia và bạn học, có lịch học đều đặn mỗi tuần để đảm bảo hoàn thành mục tiêu.',
   },
   {
     number: '02',
-    title: 'Vào lớp muộn 15 phút? Bấm 1 nút là nắm bắt ngay bài giảng',
+    title: 'Tóm tắt bài giảng nhanh chóng khi vào lớp muộn',
     description:
-      'Trong giờ học trực tuyến, nếu bạn bận vào trễ, Trợ lý thông minh trong phòng học sẽ tóm tắt gọn gàng những ý chính thầy vừa giảng trong 10 phút qua để bạn bắt kịp cả lớp ngay lập tức.',
+      'Nếu kẹt việc vào trễ, tính năng tóm tắt trong phòng học sẽ điểm lại ngắn gọn những ý trọng tâm giảng viên vừa chia sẻ để bạn bắt kịp cả lớp.',
   },
   {
     number: '03',
-    title: 'Hỏi bài lúc 12h đêm, được chỉ tận tay tới từng giây video',
+    title: 'Giải đáp thắc mắc và dẫn đến đúng mốc thời gian bài giảng',
     description:
-      'Khi xem lại bài giảng mà gặp đoạn khó hiểu, bạn chỉ cần đặt câu hỏi. Trợ giảng AI sẽ giải thích cặn kẽ và đính kèm nút bấm nhảy tới đúng phút, đúng giây trong video và đúng trang tài liệu mà thầy đã giảng về phần đó.',
+      'Khi xem lại bài học, bạn có thể đặt câu hỏi bất kỳ lúc nào. Hệ thống hỗ trợ giải thích rõ ràng và chỉ dẫn đến đúng đoạn video cùng trang tài liệu tương ứng.',
   },
   {
     number: '04',
-    title: 'Làm bài tập được chấm chữa chi tiết và chỉ đúng chỗ cần ôn lại',
+    title: 'Bài tập ngắn củng cố kiến thức và hướng dẫn ôn tập sau mỗi buổi',
     description:
-      'Sau mỗi buổi học, bạn làm bài kiểm tra ngắn để nắm chắc kiến thức; câu nào làm sai sẽ được chỉ dẫn xem lại đúng đoạn bài giảng tương ứng mà không phải mò mẫm từ đầu.',
+      'Mỗi buổi học đều đi kèm bài kiểm tra ngắn giúp bạn đánh giá mức độ hiểu bài và xác định ngay những phần kiến thức cần xem lại.',
   },
 ];
 
@@ -99,11 +113,24 @@ export const INITIAL_COURSES: Course[] = [
     slug: 'ai-engineer-hybrid-rag',
     title: 'Kỹ Sư AI Thực Chiến: Xây Dựng Trợ Lý Tri Thức & Ứng Dụng AI Doanh Nghiệp',
     shortDescription:
-      'Tự tay xây dựng hệ thống tìm kiếm thông minh, kết nối cơ sở dữ liệu nội bộ và phát triển Trợ lý AI trả lời chính xác kèm trích dẫn tài liệu gốc.',
+      'Xây dựng hệ thống tìm kiếm thông minh, kết nối cơ sở dữ liệu nội bộ và phát triển Trợ lý AI trả lời chuẩn xác kèm trích dẫn tài liệu gốc.',
     descriptionMd:
-      'Chương trình đào tạo 12 buổi học trực tiếp cùng chuyên gia, giúp bạn đi từ nền tảng lập trình Python sang tự tay xây dựng được sản phẩm Trợ lý AI hoàn chỉnh cho doanh nghiệp. Bạn sẽ được hướng dẫn từng bước cách xử lý tài liệu PDF/Word dài hàng trăm trang, thiết kế bộ máy tìm kiếm kết hợp ngữ nghĩa và từ khóa, kiểm soát chất lượng câu trả lời và tối ưu tốc độ phản hồi thực tế.',
+      'Khóa học được thiết kế thực tế qua 6 buổi học chuyên sâu cùng giảng viên, giúp bạn đi từ nền tảng Python sang tự tay xây dựng sản phẩm Trợ lý AI hoàn chỉnh cho doanh nghiệp. Ở mỗi buổi học, bạn sẽ được hướng dẫn cặn kẽ cách đọc tài liệu PDF/Word có bảng biểu phức tạp, thiết kế bộ tìm kiếm kết hợp từ khóa và ngữ nghĩa trên PostgreSQL, kiểm soát quyền truy cập tài liệu và đánh giá chất lượng câu trả lời trước khi đưa vào sử dụng thực tế.',
     category: 'AI & Dữ liệu',
     difficultyLevel: 4,
+    durationWeeks: 6,
+    totalHours: 24,
+    highlights: [
+      'Tự tay làm hoàn chỉnh 1 sản phẩm Trợ lý AI tra cứu tài liệu nội bộ có trích dẫn trang và mốc thời gian cụ thể.',
+      'Nắm vững cách xử lý file PDF/Word tiếng Việt có bảng biểu phức tạp mà không bị mất chữ hay lệch dòng.',
+      'Được giảng viên trực tiếp xem code, góp ý từng buổi và có Trợ giảng AI hỗ trợ giải đáp 24/7 khi tự thực hành ở nhà.',
+      'Nhận chứng chỉ tốt nghiệp có mã QR xác thực công khai và được hỗ trợ rà soát CV, luyện phỏng vấn cuối khóa.',
+    ],
+    targetAudience: [
+      'Lập trình viên Backend / Fullstack muốn tích hợp tính năng tìm kiếm và Trợ lý AI vào sản phẩm công ty.',
+      'Kỹ sư dữ liệu hoặc sinh viên CNTT năm cuối muốn có dự án AI thực tế để tự tin ứng tuyển.',
+      'Bạn đã biết cơ bản về Python và SQL, muốn học cách làm sản phẩm AI chạy ổn định trong môi trường thực tế.',
+    ],
     skills: [
       { type: 'PREREQUISITE', code: 'PY-CORE', name: 'Python' },
       { type: 'PREREQUISITE', code: 'SQL-BASE', name: 'SQL' },
@@ -115,38 +142,98 @@ export const INITIAL_COURSES: Course[] = [
     syllabusTemplate: [
       {
         order: 1,
+        moduleTitle: 'Chương 1: Nền tảng kiến trúc RAG & Chống trả lời sai sự thật',
+        duration: '120 phút (Lý thuyết trọng tâm + Thực hành tại lớp)',
         title: 'Tổng quan ứng dụng AI trong doanh nghiệp & Cách giúp AI trả lời đúng sự thật',
-        summary: 'Hiểu rõ nguyên nhân AI trả lời sai lệch và cách buộc hệ thống luôn trích dẫn nguồn tài liệu gốc.',
+        summary:
+          'Hiểu rõ nguyên nhân vì sao mô hình ngôn ngữ hay tự suy diễn thông tin và cách thiết kế luồng tra cứu buộc AI luôn trích dẫn đúng tài liệu gốc.',
+        topics: [
+          'Phân tích kiến trúc tổng thể của hệ thống Trợ lý tri thức doanh nghiệp (Ingestion → Retrieval → Generation).',
+          'Cách thiết kế khung câu lệnh (System Prompt) bắt buộc mô hình trả lời dựa trên bằng chứng và từ chối khi thiếu tài liệu.',
+          'Quy trình gắn mã định danh đoạn văn (Citation ID) để đối chiếu ngược về đúng trang tài liệu gốc.',
+          'Thực hành dựng nhanh API hỏi đáp đầu tiên bằng Python và FastAPI ngay trong buổi học.',
+        ],
+        deliverable: 'Chạy thành công dịch vụ API hỏi đáp tài liệu cơ bản có hiển thị nguồn trích dẫn rõ ràng.',
         activityTags: ['THEORY', 'WORKSHOP'],
       },
       {
         order: 2,
+        moduleTitle: 'Chương 2: Vector Embeddings & Xử lý ngôn ngữ tiếng Việt',
+        duration: '120 phút (Lý thuyết + Live Coding)',
         title: 'Biểu diễn văn bản tiếng Việt thành Vector & Tìm kiếm theo ngữ nghĩa',
-        summary: 'Thực hành chuyển đổi câu chữ thành vector số học để máy tính hiểu đúng ý nghĩa câu hỏi của người dùng.',
+        summary:
+          'Thực hành chuyển đổi câu chữ tiếng Việt thành vector số học để máy tính hiểu đúng ý nghĩa câu hỏi ngay cả khi người dùng dùng từ đồng nghĩa.',
+        topics: [
+          'Bản chất của Vector Embedding và cách đo độ tương đồng ngữ nghĩa bằng khoảng cách Cosine / Inner Product.',
+          'So sánh và lựa chọn mô hình Embedding tối ưu cho văn bản tiếng Việt và thuật ngữ chuyên ngành.',
+          'Xử lý chuẩn hóa văn bản tiếng Việt, từ viết tắt và thuật ngữ song ngữ Anh – Việt.',
+          'Thực hành viết bộ chuyển đổi hàng loạt tài liệu sang Vector nhanh và tiết kiệm chi phí gọi API.',
+        ],
+        deliverable: 'Bộ công cụ mã hóa văn bản tiếng Việt và kiểm thử độ chính xác khi tìm kiếm các câu hỏi đồng nghĩa.',
         activityTags: ['THEORY', 'LIVE_CODING'],
       },
       {
         order: 3,
+        moduleTitle: 'Chương 3: Cơ sở dữ liệu Vector trên PostgreSQL (pgvector)',
+        duration: '120 phút (Live Coding + Chữa bài tập)',
         title: 'Thiết kế & Tăng tốc truy vấn Cơ sở dữ liệu Vector trên PostgreSQL',
-        summary: 'Tổ chức bảng dữ liệu hàng triệu văn bản và tối ưu chỉ mục để tìm kiếm nhanh trong tích tắc.',
+        summary:
+          'Tổ chức bảng dữ liệu lưu trữ hàng trăm nghìn đoạn văn bản trên PostgreSQL và tối ưu chỉ mục HNSW để đạt hiệu năng truy vấn cao.',
+        topics: [
+          'Cài đặt và thiết kế lược đồ bảng dữ liệu kết hợp siêu dữ liệu (Metadata JSONB) cùng cột Vector trên PostgreSQL.',
+          'Cơ chế hoạt động của chỉ mục HNSW và cách tinh chỉnh tham số để cân bằng giữa tốc độ và độ chính xác.',
+          'Kỹ thuật lọc dữ liệu theo phòng ban, quyền hạn người dùng (RBAC) ngay trong câu truy vấn SQL Vector.',
+          'Đo kiểm thời gian phản hồi thực tế và cách xử lý khi cập nhật thêm tài liệu mới vào hệ thống.',
+        ],
+        deliverable: 'Cơ sở dữ liệu PostgreSQL pgvector hoàn chỉnh, đạt tốc độ tìm kiếm dưới 30ms kèm bộ lọc phân quyền.',
         activityTags: ['LIVE_CODING', 'EXERCISE_REVIEW'],
       },
       {
         order: 4,
+        moduleTitle: 'Chương 4: Xử lý tài liệu PDF/Word phức tạp & Chia đoạn thông minh',
+        duration: '120 phút (Lý thuyết + Live Coding)',
         title: 'Kỹ thuật bóc tách tài liệu PDF/Word an toàn & Chia nhỏ đoạn văn thông minh',
-        summary: 'Xây dựng bộ đọc tài liệu giữ nguyên bảng biểu và kiểm soát dung lượng tệp đầu vào an toàn.',
+        summary:
+          'Xây dựng bộ đọc tài liệu giữ nguyên cấu trúc bảng biểu, tiêu đề mục lớn nhỏ và kiểm soát tệp đầu vào an toàn.',
+        topics: [
+          'Kỹ thuật bóc tách file PDF, Word, báo cáo tài chính có chứa bảng biểu nhiều cột sang định dạng Markdown chuẩn.',
+          'Phương pháp chia nhỏ đoạn văn theo cấu trúc tiêu đề (Hierarchical & Semantic Chunking) kèm phần gối đầu ngữ cảnh.',
+          'Cách gắn tự động thông tin số trang, tên chương mục vào từng đoạn nhỏ để hiển thị trích dẫn chuẩn xác.',
+          'Kiểm tra an toàn tệp tải lên và xử lý bất đồng bộ cho các tệp tài liệu dung lượng lớn.',
+        ],
+        deliverable: 'Pipeline tự động đọc file PDF có bảng biểu và lưu trữ phân đoạn thông minh vào PostgreSQL.',
         activityTags: ['THEORY', 'LIVE_CODING'],
       },
       {
         order: 5,
+        moduleTitle: 'Chương 5: Tìm kiếm kết hợp (Hybrid Search) & Xếp hạng lại kết quả',
+        duration: '120 phút (Live Coding + Thực hành dự án)',
         title: 'Kết hợp tìm kiếm từ khóa và tìm kiếm ngữ nghĩa để đạt độ chính xác cao nhất',
-        summary: 'Phối hợp linh hoạt giữa tìm chính xác mã hiệu/tên riêng và tìm theo ý nghĩa câu hỏi.',
+        summary:
+          'Phối hợp linh hoạt giữa tìm chính xác mã sản phẩm, số hợp đồng (Full-Text Search) và tìm theo ý nghĩa câu hỏi (Vector Search).',
+        topics: [
+          'Vì sao chỉ dùng Vector Search thường tìm sai các mã hiệu, số văn bản hoặc tên riêng?',
+          'Xây dựng truy vấn kết hợp BM25 / Full-Text Search và Vector Search ngay trên PostgreSQL.',
+          'Thuật toán trộn thứ hạng Reciprocal Rank Fusion (RRF) và bước chấm điểm xếp hạng lại (Cross-Encoder Reranking).',
+          'Thiết lập bộ nhớ đệm (Semantic Caching) giúp giảm thời gian chờ đối với các câu hỏi lặp lại phổ biến.',
+        ],
+        deliverable: 'Bộ máy Hybrid Search hoàn chỉnh kết hợp Reranker nâng độ chính xác tra cứu lên trên 90%.',
         activityTags: ['LIVE_CODING', 'WORKSHOP'],
       },
       {
         order: 6,
-        title: 'Xây dựng Trợ giảng AI gắn mốc thời gian video & Trích dẫn trang tài liệu',
-        summary: 'Đồng bộ hóa phụ đề bài giảng theo từng giây và dẫn người học tới đúng đoạn video cần xem.',
+        moduleTitle: 'Chương 6: Hoàn thiện sản phẩm, Kiểm thử chất lượng & Bảo vệ đồ án',
+        duration: '120 phút (Live Coding + Chữa đồ án cuối khóa)',
+        title: 'Xây dựng Trợ giảng AI gắn mốc thời gian video & Kiểm thử chất lượng hệ thống',
+        summary:
+          'Đồng bộ hóa phụ đề bài giảng theo từng giây, tự động chấm điểm độ trung thực của câu trả lời và hoàn thiện dự án cuối khóa.',
+        topics: [
+          'Kỹ thuật ánh xạ câu trả lời của AI vào đúng mốc thời gian (mm:ss) của video bài giảng và trang tài liệu PDF.',
+          'Xây dựng bộ câu hỏi kiểm thử tự động (Golden Dataset) để đo độ chính xác và độ trung thực của hệ thống.',
+          'Thiết lập bảng theo dõi chi phí token, tốc độ phản hồi và phát hiện sớm các câu hỏi AI chưa trả lời tốt.',
+          'Giảng viên trực tiếp góp ý mã nguồn dự án cho từng bạn và hướng dẫn cách trình bày dự án ấn tượng trong hồ sơ năng lực.',
+        ],
+        deliverable: 'Hoàn thiện dự án Trợ lý AI cuối khóa kèm bộ báo cáo đánh giá chất lượng sẵn sàng đưa vào hồ sơ năng lực.',
         activityTags: ['LIVE_CODING', 'EXERCISE_REVIEW'],
       },
     ],
@@ -160,9 +247,20 @@ export const INITIAL_COURSES: Course[] = [
     shortDescription:
       'Làm chủ kỹ năng thiết kế hệ thống thanh toán tự động, xử lý hàng nghìn giao dịch cùng lúc, tối ưu cơ sở dữ liệu và triển khai ứng dụng đám mây.',
     descriptionMd:
-      'Khóa học dành cho lập trình viên muốn nâng tầm kỹ năng từ viết tính năng cơ bản sang thiết kế hệ thống lớn, hoạt động ổn định và an toàn. Bạn sẽ trực tiếp thực hành xây dựng luồng đối soát thanh toán ngân hàng tự động trong 3 giây, chống trùng lặp giao dịch khi mạng chập chờn và theo dõi sức khỏe hệ thống trực quan.',
+      'Khóa học dành cho các bạn lập trình viên muốn nâng tầm từ việc chỉ viết tính năng cơ bản sang làm chủ kiến trúc hệ thống lớn, hoạt động ổn định và an toàn. Bạn sẽ trực tiếp thực hành xây dựng luồng đối soát thanh toán ngân hàng VietQR tự động trong 3 giây, chống trùng lặp giao dịch khi mạng chập chờn và thiết lập hệ thống giám sát lỗi trực quan.',
     category: 'Kỹ thuật Phần mềm & Cloud',
     difficultyLevel: 4,
+    durationWeeks: 6,
+    totalHours: 24,
+    highlights: [
+      'Tự tay thiết kế luồng thanh toán và đối soát Webhook ngân hàng tự động, chống cộng tiền trùng lặp (Idempotency).',
+      'Biết cách tìm và xử lý tận gốc các câu lệnh SQL gây nghẽn hệ thống khi có nhiều người truy cập cùng lúc.',
+      'Thực hành kiến trúc tách tác vụ chạy ngầm với hàng đợi tin nhắn (Message Queue) và triển khai Docker chuẩn chỉnh.',
+    ],
+    targetAudience: [
+      'Lập trình viên Backend / Fullstack muốn nắm vững kỹ năng thiết kế hệ thống chịu tải cao thực tế.',
+      'Các bạn đang chuẩn bị phỏng vấn lên vị trí Junior/Middle/Senior Backend Engineer tại các công ty sản phẩm công nghệ.',
+    ],
     skills: [
       { type: 'PREREQUISITE', code: 'NODE-TS', name: 'Node.js' },
       { type: 'PREREQUISITE', code: 'SQL-BASE', name: 'SQL' },
@@ -173,26 +271,66 @@ export const INITIAL_COURSES: Course[] = [
     syllabusTemplate: [
       {
         order: 1,
+        moduleTitle: 'Chương 1: Giao dịch an toàn & Chống trùng lặp (Idempotency)',
+        duration: '120 phút (Lý thuyết + Live Coding)',
         title: 'Thiết kế luồng thanh toán chuyển khoản ngân hàng tự động & Đối soát an toàn',
-        summary: 'Đảm bảo mỗi đơn hàng luôn được kích hoạt chính xác ngay cả khi đường truyền mạng bị gián đoạn.',
+        summary:
+          'Đảm bảo mỗi đơn hàng luôn được kích hoạt chính xác đúng 1 lần ngay cả khi đường truyền mạng bị gián đoạn hoặc Webhook gọi lại nhiều lần.',
+        topics: [
+          'Phân tích các sự cố thực tế thường gặp khi tích hợp cổng thanh toán và Webhook ngân hàng.',
+          'Thiết kế khóa chống trùng lặp (Idempotency Key) và máy trạng thái đơn hàng chặt chẽ.',
+          'Kỹ thuật xác thực chữ ký bảo mật Webhook và lưu nhật ký đối soát giao dịch minh bạch.',
+          'Thực hành viết dịch vụ nhận biến động số dư VietQR và mở khóa khóa học tự động trong 3 giây.',
+        ],
+        deliverable: 'Module xử lý thanh toán VietQR tự động có cơ chế chống trùng lặp giao dịch 100%.',
         activityTags: ['THEORY', 'LIVE_CODING'],
       },
       {
         order: 2,
+        moduleTitle: 'Chương 2: Tối ưu hóa PostgreSQL & Kiểm soát truy cập đồng thời',
+        duration: '120 phút (Live Coding + Chữa bài tập)',
         title: 'Tối ưu hóa truy vấn PostgreSQL & Xử lý nhiều người mua hàng cùng lúc',
-        summary: 'Thực hành cơ chế khóa dòng dữ liệu an toàn và viết câu lệnh SQL chạy mượt trên dữ liệu lớn.',
+        summary:
+          'Thực hành cơ chế khóa dòng dữ liệu an toàn khi giữ chỗ lớp học và viết câu lệnh SQL chạy mượt trên dữ liệu lớn.',
+        topics: [
+          'Cách đọc bảng phân tích truy vấn EXPLAIN ANALYZE để tìm ra điểm nghẽn hiệu năng.',
+          'Ứng dụng khóa bi quan (SELECT FOR UPDATE) và khóa lạc quan để chống bán quá số chỗ (Overselling).',
+          'Kỹ thuật đánh chỉ mục tổ hợp (Composite Index) và quản lý kết nối cơ sở dữ liệu (Connection Pooling).',
+          'Thực hành tối ưu câu truy vấn báo cáo doanh thu từ 3 giây xuống dưới 20ms.',
+        ],
+        deliverable: 'Bộ API giữ chỗ lớp học chịu tải cao, đảm bảo không bao giờ vượt quá sĩ số tối đa.',
         activityTags: ['LIVE_CODING', 'EXERCISE_REVIEW'],
       },
       {
         order: 3,
+        moduleTitle: 'Chương 3: Hàng đợi tin nhắn & Xử lý bất đồng bộ',
+        duration: '120 phút (Lý thuyết + Live Coding)',
         title: 'Kiến trúc hàng đợi tin nhắn (Message Queue) & Xử lý tác vụ chạy ngầm',
-        summary: 'Tách biệt các tác vụ gửi email, xuất báo cáo và xử lý video để giao diện người dùng luôn phản hồi tức thì.',
+        summary:
+          'Tách biệt các tác vụ gửi email, cấp chứng chỉ và xử lý video sang chạy ngầm để giao diện người dùng luôn phản hồi tức thì.',
+        topics: [
+          'Khi nào nên xử lý đồng bộ và khi nào cần đẩy vào hàng đợi bất đồng bộ (Background Workers)?',
+          'Cơ chế thử lại thông minh (Exponential Backoff) và xử lý hàng đợi lỗi (Dead-Letter Queue).',
+          'Thiết kế luồng thông báo thời gian thực giúp người dùng nhận kết quả ngay trên màn hình.',
+          'Thực hành xây dựng worker tự động tạo chứng chỉ PDF và gửi thông báo sau khi học viên hoàn thành khóa học.',
+        ],
+        deliverable: 'Hệ thống Worker chạy ngầm ổn định, tự động phục hồi khi dịch vụ bên thứ ba tạm ngưng.',
         activityTags: ['THEORY', 'LIVE_CODING'],
       },
       {
         order: 4,
+        moduleTitle: 'Chương 4: Bảo mật API, Phân quyền RBAC & Giám sát hệ thống',
+        duration: '120 phút (Live Coding + Thực hành dự án)',
         title: 'Bảo vệ hệ thống API, Phân quyền người dùng & Giám sát lỗi thời gian thực',
-        summary: 'Thiết lập lớp bảo vệ tài khoản, giới hạn tần suất gọi API và cảnh báo sớm khi hệ thống quá tải.',
+        summary:
+          'Thiết lập lớp bảo vệ tài khoản chặt chẽ theo từng vai trò (Học viên, Giảng viên, Quản trị), giới hạn tần suất gọi API và cảnh báo sớm.',
+        topics: [
+          'Kiến trúc xác thực JWT kết hợp Refresh Token và kiểm soát quyền truy cập theo vai trò (RBAC Middleware).',
+          'Thiết lập bộ giới hạn tốc độ gọi API (Rate Limiting) chống tấn công dò mật khẩu và spam.',
+          'Chuẩn hóa nhật ký hệ thống có gắn mã vết (Request ID) để tra cứu lỗi nhanh trong tích tắc.',
+          'Đóng gói toàn bộ ứng dụng bằng Docker và kiểm tra sức khỏe hệ thống tự động.',
+        ],
+        deliverable: 'Hệ thống Backend hoàn chỉnh có phân quyền chặt chẽ, bảo mật cao và sẵn sàng triển khai thực tế.',
         activityTags: ['LIVE_CODING', 'WORKSHOP'],
       },
     ],
@@ -204,11 +342,22 @@ export const INITIAL_COURSES: Course[] = [
     slug: 'analytics-engineering-dbt-lakehouse',
     title: 'Phân Tích Dữ Liệu Thực Chiến & Xây Dựng Báo Cáo Thông Minh Với SQL, Python',
     shortDescription:
-      'Làm chủ quy trình làm sạch dữ liệu, tự động hóa kiểm tra chất lượng số liệu và xây dựng hệ thống báo cáo trực quan giúp doanh nghiệp ra quyết định.',
+      'Hướng dẫn từng bước làm sạch dữ liệu, tự động hóa kiểm tra chất lượng số liệu và xây dựng bộ báo cáo trực quan giúp doanh nghiệp ra quyết định hiệu quả.',
     descriptionMd:
-      'Chương trình thiết kế thực tế cho bạn muốn làm chủ trọn vẹn luồng phân tích dữ liệu hiện đại. Bạn sẽ thực hành trên bộ dữ liệu thực tế của doanh nghiệp, viết truy vấn SQL tối ưu và tự động hóa quy trình cập nhật báo cáo mỗi ngày.',
+      'Chương trình được thiết kế gần gũi, thực tế dành cho các bạn muốn làm chủ trọn vẹn luồng phân tích dữ liệu hiện đại. Bạn sẽ thực hành trực tiếp trên bộ dữ liệu kinh doanh và giáo dục, viết truy vấn SQL tối ưu, tự động hóa kiểm tra sai số và trình bày báo cáo thuyết phục, tin cậy.',
     category: 'Phân tích Dữ liệu',
     difficultyLevel: 3,
+    durationWeeks: 6,
+    totalHours: 24,
+    highlights: [
+      'Biết cách tổ chức dữ liệu thô lộn xộn thành các bảng dữ liệu sạch sẽ, chuẩn chỉ để làm báo cáo nhanh chóng.',
+      'Làm chủ các kỹ thuật SQL nâng cao (Window Functions, Cohort Retention) để phân tích hành vi người dùng.',
+      'Tự tay xây dựng bảng điều khiển (Dashboard) trực quan giúp theo dõi doanh thu và tỷ lệ chuyển đổi theo thời gian thực.',
+    ],
+    targetAudience: [
+      'Chuyên viên phân tích dữ liệu (Data Analyst / BI), vận hành hoặc tài chính muốn tự động hóa báo cáo bằng SQL & Python.',
+      'Sinh viên hoặc người đi làm muốn chuyển hướng sang mảng Phân tích dữ liệu với dự án thực tế rõ ràng.',
+    ],
     skills: [
       { type: 'PREREQUISITE', code: 'SQL-BASE', name: 'SQL' },
       { type: 'LEARNING_OUTCOME', code: 'PY-CORE', name: 'Python' },
@@ -218,20 +367,50 @@ export const INITIAL_COURSES: Course[] = [
     syllabusTemplate: [
       {
         order: 1,
+        moduleTitle: 'Chương 1: Mô hình hóa dữ liệu & Làm sạch dữ liệu đa nguồn',
+        duration: '120 phút (Lý thuyết + Thực hành)',
         title: 'Tổ chức kho dữ liệu khoa học từ dữ liệu thô sang báo cáo quản trị',
-        summary: 'Chuẩn hóa quy trình làm sạch và ghép nối dữ liệu từ nhiều nguồn khác nhau.',
+        summary:
+          'Chuẩn hóa quy trình làm sạch và ghép nối dữ liệu từ nhiều nguồn khác nhau để con số báo cáo luôn nhất quán.',
+        topics: [
+          'Phân biệt bảng sự kiện (Fact) và bảng thông tin chiều (Dimension) theo mô hình Star Schema.',
+          'Quy trình 3 lớp (Staging → Intermediate → Marts) giúp dễ dàng kiểm soát nguồn gốc số liệu.',
+          'Xử lý dữ liệu bị khuyết, dữ liệu trùng lặp và chuẩn hóa múi giờ trong giao dịch.',
+          'Thực hành thiết kế bộ bảng dữ liệu theo dõi hành trình học viên từ lúc đăng ký tới khi tốt nghiệp.',
+        ],
+        deliverable: 'Bộ mô hình dữ liệu chuẩn hóa giúp truy vấn báo cáo nhanh và không bị lệch số giữa các phòng ban.',
         activityTags: ['THEORY', 'WORKSHOP'],
       },
       {
         order: 2,
+        moduleTitle: 'Chương 2: Truy vấn SQL nâng cao & Phân tích hành vi theo đợt (Cohort)',
+        duration: '120 phút (Live Coding + Chữa bài tập)',
         title: 'Kỹ thuật viết câu lệnh SQL nâng cao để phân tích hành vi khách hàng',
-        summary: 'Đo lường tỷ lệ gắn bó của người dùng theo từng tuần và phát hiện sớm nguyên nhân rời bỏ.',
+        summary:
+          'Đo lường tỷ lệ gắn bó của người dùng theo từng tuần và phát hiện sớm nguyên nhân khiến học viên hoặc khách hàng rời bỏ.',
+        topics: [
+          'Làm chủ CTEs và Window Functions (ROW_NUMBER, LAG, LEAD, SUM OVER) trên bài toán thực tế.',
+          'Xây dựng bảng phân tích tỷ lệ giữ chân người dùng theo từng đợt (Cohort Retention Analysis).',
+          'Phân tích phễu chuyển đổi (Conversion Funnel) để tìm ra bước nào khách hàng hay bỏ dở nhất.',
+          'Thực hành viết bộ truy vấn phát hiện sớm học viên có nguy cơ chậm tiến độ để kịp thời hỗ trợ.',
+        ],
+        deliverable: 'Bộ truy vấn SQL phân tích phễu chuyển đổi và tỷ lệ hoàn thành khóa học theo từng tuần.',
         activityTags: ['LIVE_CODING', 'EXERCISE_REVIEW'],
       },
       {
         order: 3,
+        moduleTitle: 'Chương 3: Kiểm định chất lượng số liệu & Trực quan hóa báo cáo',
+        duration: '120 phút (Live Coding + Hoàn thiện dự án)',
         title: 'Tự động hóa kiểm tra độ chính xác của số liệu trước khi gửi báo cáo',
-        summary: 'Thiết lập các bài kiểm tra tự động để phát hiện ngay dữ liệu bị thiếu hoặc trùng lặp.',
+        summary:
+          'Thiết lập các bài kiểm tra tự động để phát hiện ngay dữ liệu bị thiếu hoặc sai lệch trước khi hiển thị lên bảng báo cáo.',
+        topics: [
+          'Thiết lập các quy tắc kiểm tra tự động: không rỗng, không trùng khóa chính và đối chiếu tổng tiền.',
+          'Kết hợp Python để tự động tổng hợp nhận xét xu hướng tăng giảm nổi bật trong tuần.',
+          'Nguyên tắc chọn đúng loại biểu đồ (Đường xu hướng, Cột chồng, Phễu) giúp người xem hiểu ngay trong 5 giây.',
+          'Hoàn thiện dự án báo cáo phân tích quản trị và giảng viên góp ý cách kể chuyện bằng dữ liệu.',
+        ],
+        deliverable: 'Hệ thống báo cáo quản trị tự động kèm bộ kiểm tra chất lượng số liệu đáng tin cậy.',
         activityTags: ['LIVE_CODING'],
       },
     ],
@@ -243,11 +422,22 @@ export const INITIAL_COURSES: Course[] = [
     slug: 'python-sql-ai-foundation-bootcamp',
     title: 'Nền Tảng Lập Trình Python & Truy Vấn Dữ Liệu SQL Thực Chiến Cho Người Mới',
     shortDescription:
-      'Lộ trình khởi đầu vững chắc giúp người mới hoặc người trái ngành nắm chắc Python hiện đại, xử lý dữ liệu bảng và viết truy vấn SQL tự tin.',
+      'Lộ trình khởi đầu vững chắc, dễ hiểu giúp người mới bắt đầu hoặc chuyển ngành nắm chắc Python hiện đại, xử lý dữ liệu bảng và viết SQL tự tin.',
     descriptionMd:
-      'Được thiết kế gần gũi, dễ hiểu dành riêng cho bạn mới bắt đầu hoặc muốn củng cố lại gốc lập trình trước khi học lên các lớp AI và Dữ liệu chuyên sâu. Mỗi buổi học đều có bài tập ngắn thực hành ngay tại lớp và trợ giảng AI đồng hành kèm cặp sát sao.',
+      'Được thiết kế gần gũi, dễ hiểu dành riêng cho bạn mới bắt đầu hoặc muốn củng cố lại gốc lập trình trước khi học lên các lớp AI và Dữ liệu chuyên sâu. Mỗi buổi học đều đi từ ví dụ thực tế, có bài tập ngắn thực hành ngay tại lớp và luôn có giảng viên cùng Trợ giảng AI kèm cặp sát sao.',
     category: 'AI & Dữ liệu',
     difficultyLevel: 2,
+    durationWeeks: 6,
+    totalHours: 24,
+    highlights: [
+      'Học từ gốc với cách giải thích trực quan, dễ hiểu, không dùng thuật ngữ hàn lâm gây rối cho người mới bắt đầu.',
+      'Thực hành viết code ngay trên lớp cùng giảng viên, sai đâu được sửa và giải thích cặn kẽ ngay tại buổi học.',
+      'Đủ nền tảng vững vàng về Python, SQL và kết nối API để tự động hóa công việc hoặc học tiếp lên lớp Kỹ sư AI.',
+    ],
+    targetAudience: [
+      'Người mới bắt đầu hoặc chuyển ngành muốn học bài bản Python và SQL để ứng dụng vào công việc thực tế.',
+      'Sinh viên các ngành kinh tế, kỹ thuật muốn trang bị kỹ năng lập trình xử lý dữ liệu từ con số 0.',
+    ],
     skills: [
       { type: 'LEARNING_OUTCOME', code: 'PY-CORE', name: 'Python' },
       { type: 'LEARNING_OUTCOME', code: 'SQL-BASE', name: 'SQL' },
@@ -256,14 +446,34 @@ export const INITIAL_COURSES: Course[] = [
     syllabusTemplate: [
       {
         order: 1,
+        moduleTitle: 'Chương 1: Làm quen tư duy lập trình Python hiện đại & Gọn gàng',
+        duration: '120 phút (Lý thuyết + Thực hành tại lớp)',
         title: 'Tư duy lập trình Python rõ ràng, dễ đọc & Quản lý dự án chuyên nghiệp',
-        summary: 'Làm chủ cấu trúc dữ liệu, hàm, xử lý ngoại lệ và cách viết mã nguồn gọn gàng.',
+        summary:
+          'Làm chủ cấu trúc dữ liệu, hàm, xử lý lỗi an toàn và cách tổ chức mã nguồn gọn gàng ngay từ những dòng code đầu tiên.',
+        topics: [
+          'Cài đặt môi trường làm việc chuẩn chỉnh và làm chủ các kiểu dữ liệu cốt lõi (List, Dict, Set, Tuple).',
+          'Cách chia nhỏ bài toán thành các hàm rõ ràng, có chú thích kiểu dữ liệu (Type Hints) dễ bảo trì.',
+          'Kỹ thuật đọc ghi file CSV, JSON và bắt lỗi ngoại lệ (Try / Except) để chương trình không bị dừng đột ngột.',
+          'Thực hành viết công cụ tự động đọc và tổng hợp danh sách hóa đơn từ file dữ liệu thực tế.',
+        ],
+        deliverable: 'Ứng dụng Python đầu tay tự động đọc, làm sạch và xuất báo cáo tổng hợp từ file dữ liệu.',
         activityTags: ['THEORY', 'LIVE_CODING'],
       },
       {
         order: 2,
+        moduleTitle: 'Chương 2: Thiết kế bảng & Truy vấn dữ liệu SQL thực tế',
+        duration: '120 phút (Live Coding + Chữa bài tập)',
         title: 'Thiết kế bảng dữ liệu & Viết truy vấn SQL lấy đúng thông tin cần thiết',
-        summary: 'Thực hành lọc, gom nhóm và kết nối nhiều bảng dữ liệu trên bài toán thực tế.',
+        summary:
+          'Thực hành lọc, gom nhóm, tính tổng và kết nối nhiều bảng dữ liệu trên bài toán quản lý cửa hàng và lớp học thực tế.',
+        topics: [
+          'Cách tổ chức dữ liệu thành các bảng có khóa chính, khóa ngoại rõ ràng, tránh lưu trùng lặp.',
+          'Nắm chắc các câu lệnh SELECT, WHERE, GROUP BY, HAVING và ORDER BY qua các bài toán gần gũi.',
+          'Kỹ thuật ghép nối nhiều bảng dữ liệu (INNER JOIN, LEFT JOIN) để lên báo cáo tổng hợp.',
+          'Thực hành kết nối Python với cơ sở dữ liệu SQL và kết nối API bên ngoài để tự động hóa công việc hàng ngày.',
+        ],
+        deliverable: 'Hoàn thiện bộ truy vấn SQL báo cáo doanh thu và script Python tự động đồng bộ dữ liệu qua API.',
         activityTags: ['LIVE_CODING', 'EXERCISE_REVIEW'],
       },
     ],
@@ -282,7 +492,7 @@ export const INITIAL_COHORTS: Cohort[] = [
     courseId: 'course-ai-rag',
     instructorId: 'usr-inst-khoa',
     code: 'AI-ENG-2026-K01',
-    name: 'Lớp Kỹ Sư AI Thực Chiến — Khóa K01 (Đang mở ghi danh)',
+    name: 'Lớp Kỹ Sư AI Thực Chiến — Khóa K01',
     curriculumVersion: 'v2.4',
     tuitionVnd: 8500000,
     enrolledCount: 34,
@@ -310,7 +520,7 @@ export const INITIAL_COHORTS: Cohort[] = [
     courseId: 'course-ai-rag',
     instructorId: 'usr-inst-khoa',
     code: 'AI-ENG-2026-K02',
-    name: 'Lớp Kỹ Sư AI Thực Chiến — Khóa K02 (Lịch linh hoạt Thứ 2 & Thứ 6)',
+    name: 'Lớp Kỹ Sư AI Thực Chiến — Khóa K02',
     curriculumVersion: 'v2.5',
     tuitionVnd: 8500000,
     enrolledCount: 18,
@@ -987,6 +1197,53 @@ export const INITIAL_CERTIFICATES: Record<string, CertificateRecord> = {
       { code: 'AI-EVAL', name: 'Kiểm soát chất lượng câu trả lời & Trích dẫn nguồn chính xác', score: 93 },
     ],
   },
+  'CERT-3T-2026-7788': {
+    certificateCode: 'CERT-3T-2026-7788',
+    studentName: 'Nguyễn Văn An',
+    studentEmail: 'an.nguyen.ai@3tacademy.vn',
+    courseTitle: 'Nền Tảng Lập Trình Python & Truy Vấn Dữ Liệu SQL Thực Chiến Cho Người Mới',
+    cohortCode: 'PY-SQL-2026-K04',
+    issuedAt: '12/10/2026 · 14:30',
+    verificationSignature: '3T-VERIFIED-2026-7788D081884C7D659A2FEAA0C55AD999',
+    finalScore: 96,
+    proctoringIntegrity: 'Đã hoàn thành đầy đủ bài tập các buổi học & Vượt qua kỳ thi tốt nghiệp cuối khóa',
+    isRevoked: false,
+    skillsMastered: [
+      { code: 'PYTHON-CORE', name: 'Lập trình Python cấu trúc dữ liệu & tự động hóa', score: 98 },
+      { code: 'SQL-ADV', name: 'Thiết kế truy vấn dữ liệu SQL đa bảng & tối ưu chỉ mục', score: 95 },
+    ],
+  },
+  'CERT-3T-2026-8892': {
+    certificateCode: 'CERT-3T-2026-8892',
+    studentName: 'Lê Hoàng Mai',
+    studentEmail: 'mai.le.product@3tacademy.vn',
+    courseTitle: 'Kỹ Sư AI Thực Chiến: Xây Dựng Trợ Lý Tri Thức & Ứng Dụng AI Doanh Nghiệp',
+    cohortCode: 'AI-ENG-2026-K01',
+    issuedAt: '08/11/2026 · 17:10',
+    verificationSignature: '3T-VERIFIED-2026-4B227777D4DD1FC61C6F884F48641D02',
+    finalScore: 91,
+    proctoringIntegrity: 'Đã hoàn thành đầy đủ bài tập các buổi học & Vượt qua kỳ thi tốt nghiệp cuối khóa',
+    isRevoked: false,
+    skillsMastered: [
+      { code: 'VEC-DB', name: 'Thiết kế & Tối ưu hóa Cơ sở dữ liệu Vector trên PostgreSQL', score: 91 },
+      { code: 'HYBRID-RAG', name: 'Xây dựng bộ máy tìm kiếm kết hợp từ khóa và ngữ nghĩa', score: 90 },
+    ],
+  },
+  'CERT-3T-2026-9901': {
+    certificateCode: 'CERT-3T-2026-9901',
+    studentName: 'Phạm Thu Hà',
+    studentEmail: 'ha.pham.data@3tacademy.vn',
+    courseTitle: 'Nền Tảng Lập Trình Python & Truy Vấn Dữ Liệu SQL Thực Chiến Cho Người Mới',
+    cohortCode: 'PY-SQL-2026-K04',
+    issuedAt: '02/11/2026 · 15:20',
+    verificationSignature: '3T-VERIFIED-2026-E3B0C44298FC1C149AFBF4C8996FB924',
+    finalScore: 89,
+    proctoringIntegrity: 'Đã hoàn thành đầy đủ bài tập các buổi học & Vượt qua kỳ thi tốt nghiệp cuối khóa',
+    isRevoked: false,
+    skillsMastered: [
+      { code: 'SQL-OPT', name: 'Tối ưu hóa truy vấn SQL & Phân tích dữ liệu kinh doanh', score: 89 },
+    ],
+  },
 };
 
 export const INITIAL_RECEIPTS: OrderReceipt[] = [
@@ -1015,6 +1272,9 @@ export const INITIAL_USER_PROFILES: UserProfileRecord[] = [
     fullName: 'Nguyễn Văn An',
     email: 'an.nguyen.dev@gmail.com',
     role: 'STUDENT',
+    bio: 'Kỹ Sư Backend Python & Ứng Dụng AI (AI Engineer)',
+    careerGoal:
+      'Kỹ sư Backend Python với 2 năm kinh nghiệm phát triển hệ thống API hiệu năng cao và cơ sở dữ liệu PostgreSQL. Hướng tới vị trí Kỹ sư AI Thực chiến (AI Engineer), tập trung xây dựng các hệ thống tra cứu tài liệu thông minh (RAG), tìm kiếm ngữ nghĩa trên dữ liệu lớn và tự động hóa quy trình nghiệp vụ doanh nghiệp.',
     interviewCredits: 4,
     cvParsedData: {
       fileName: 'CV_Nguyen_Van_An_2026.pdf',
@@ -1027,6 +1287,19 @@ export const INITIAL_USER_PROFILES: UserProfileRecord[] = [
       linkedinUrl: 'linkedin.com/in/nguyenvanan',
       careerObjective:
         'Kỹ sư Backend Python với 2 năm kinh nghiệm phát triển hệ thống API hiệu năng cao và cơ sở dữ liệu PostgreSQL. Hướng tới vị trí Kỹ sư AI Thực chiến (AI Engineer), tập trung xây dựng các hệ thống tra cứu tài liệu thông minh (RAG), tìm kiếm ngữ nghĩa trên dữ liệu lớn và tự động hóa quy trình nghiệp vụ doanh nghiệp.',
+      skills: [
+        'Python',
+        'FastAPI',
+        'PostgreSQL & SQL',
+        'RAG & Vector Search (pgvector)',
+        'AI Agents',
+        'Pandas',
+        'Redis',
+        'Docker',
+        'Git & Linux',
+        'Golang',
+        'Tiếng Anh TOEIC 800',
+      ],
       projects: [
         {
           id: 'proj-1',
@@ -1035,6 +1308,11 @@ export const INITIAL_USER_PROFILES: UserProfileRecord[] = [
           period: '09/2026 – 11/2026',
           techStack: 'Python, FastAPI, PostgreSQL (pgvector), Redis, Docker',
           highlights: [
+            'Xây dựng bộ đọc tài liệu PDF/Word giữ nguyên cấu trúc bảng biểu tài chính dài hơn 100 trang.',
+            'Kết hợp tìm kiếm từ khóa chính xác và tìm kiếm ngữ nghĩa (Vector Search), rút ngắn thời gian phản hồi xuống dưới 800ms.',
+            'Thiết lập cơ chế bắt buộc trích dẫn số trang tài liệu gốc và phân quyền truy cập theo phòng ban.',
+          ],
+          bullets: [
             'Xây dựng bộ đọc tài liệu PDF/Word giữ nguyên cấu trúc bảng biểu tài chính dài hơn 100 trang.',
             'Kết hợp tìm kiếm từ khóa chính xác và tìm kiếm ngữ nghĩa (Vector Search), rút ngắn thời gian phản hồi xuống dưới 800ms.',
             'Thiết lập cơ chế bắt buộc trích dẫn số trang tài liệu gốc và phân quyền truy cập theo phòng ban.',
@@ -1050,6 +1328,53 @@ export const INITIAL_USER_PROFILES: UserProfileRecord[] = [
             'Thiết kế API xử lý Webhook chuyển khoản ngân hàng tự động với cơ chế chống trùng lặp giao dịch.',
             'Tối ưu hóa chỉ mục SQL và bộ nhớ đệm Redis giúp phục vụ 2.500 yêu cầu/giây ổn định.',
           ],
+          bullets: [
+            'Thiết kế API xử lý Webhook chuyển khoản ngân hàng tự động với cơ chế chống trùng lặp giao dịch.',
+            'Tối ưu hóa chỉ mục SQL và bộ nhớ đệm Redis giúp phục vụ 2.500 yêu cầu/giây ổn định.',
+          ],
+        },
+      ],
+      workExperience: [
+        {
+          id: 'exp-1',
+          company: 'Công ty Phần mềm TechViet',
+          position: 'Backend Python Developer',
+          period: '06/2025 – Hiện tại',
+          summary:
+            'Thiết kế và vận hành 18 RESTful APIs bằng FastAPI & PostgreSQL phục vụ hơn 15.000 giao dịch mỗi ngày. Tối ưu các câu truy vấn báo cáo doanh thu phức tạp và thiết lập chỉ mục cơ sở dữ liệu, giúp giảm thời gian tải báo cáo từ 1.8 giây xuống 0.4 giây.',
+        },
+        {
+          id: 'exp-2',
+          company: 'Công ty Phần mềm TechViet',
+          position: 'Fresher Python Developer',
+          period: '08/2024 – 05/2025',
+          summary:
+            'Phát triển hàng đợi xử lý bất đồng bộ bằng Redis Queue và Worker Python, đồng bộ ổn định 50.000 bản ghi tồn kho mỗi ngày giữa các chi nhánh. Viết bộ kiểm thử tự động (PyTest) đạt độ phủ 85% cho các luồng tạo vận đơn.',
+        },
+      ],
+      education: [
+        {
+          id: 'edu-1',
+          school: 'Trường Đại học Bách Khoa',
+          degree: 'Cử nhân Kỹ thuật Phần mềm — Khoa Công nghệ Thông tin',
+          period: '2020 – 2024',
+          gpaOrHonors: 'GPA: 3.4 / 4.0 · Đồ án tốt nghiệp loại Giỏi',
+        },
+      ],
+      awardsAndCerts: [
+        {
+          id: 'cert-1',
+          title: 'Chứng chỉ Tốt nghiệp: Kỹ Sư AI Thực Chiến & Tự Động Hóa Doanh Nghiệp',
+          issuer: 'Học viện Công nghệ 3T Academy',
+          dateOrCode: 'Mã xác thực: CERT-3T-2026-8891',
+          detail: 'Điểm tổng kết toàn khóa: 94 / 100 · Hoàn thành 100% bài kiểm tra và đồ án thực tế',
+        },
+        {
+          id: 'cert-2',
+          title: 'Chứng chỉ Tiếng Anh Quốc tế TOEIC Listening & Reading',
+          issuer: 'IIG Việt Nam',
+          dateOrCode: 'Điểm số: 800 / 990',
+          detail: 'Đọc hiểu thành thạo tài liệu kỹ thuật và giao tiếp tốt trong môi trường công việc',
         },
       ],
       externalSkills: [

@@ -18,8 +18,11 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
-import { AvatarWithFallback } from '../components/BotanicalStickers';
-import { AVATAR_MINH_KHOA, AVATAR_HOANG_NAM } from '../data/mockDatabase';
+import {
+  AvatarWithFallback,
+  AVATAR_MINH_KHOA,
+  AVATAR_HOANG_NAM,
+} from '../components/BotanicalStickers';
 
 interface LiveChatMessage {
   id: string;

@@ -21,6 +21,12 @@ import {
   Layers,
   Trash2,
   Clock,
+  LogOut,
+  UserPlus,
+  AlertCircle,
+  Sparkles,
+  Shield,
+  GraduationCap,
 } from 'lucide-react';
 import { useAcademy, AdminSidebarTab } from '../context/AcademyContext';
 import {
@@ -34,135 +40,19 @@ import {
   CohortScheduleSlot,
   SyllabusTemplateItem,
 } from '../types/domain';
-import { adminApi } from '../services/admin.api';
 import {
-  INITIAL_ENROLLMENTS,
-  INITIAL_CHAT_MESSAGES,
-  INITIAL_NOTIFICATIONS,
-} from '../data/mockDatabase';
+  adminApi,
+  AdminUserAccountItem,
+  EligibleGraduateItem,
+} from '../services/admin.api';
+import { authApi } from '../services/auth.api';
+import { useAsyncData } from '../hooks/useAsyncData';
 import {
   ComboBarLineChart,
   StackedBarChart,
   SmoothAreaLineChart,
   CourseRatingDistributionChart,
 } from '../components/charts';
-
-interface UserAccountItem {
-  id: string;
-  fullName: string;
-  email: string;
-  roleGroup: 'Học viên' | 'Giảng viên / Trợ giảng' | 'Quản trị viên';
-  roleDetail: string;
-  cohortAssigned: string;
-  locked: boolean;
-}
-
-const INITIAL_ACCOUNTS: UserAccountItem[] = [
-  {
-    id: 'usr-01',
-    fullName: 'TS. Trần Minh Khoa',
-    email: 'khoa.tran@3t.edu.vn',
-    roleGroup: 'Giảng viên / Trợ giảng',
-    roleDetail: 'Giảng viên chính',
-    cohortAssigned: 'Khóa K01 (v2025), Khóa K02 (v2026)',
-    locked: false,
-  },
-  {
-    id: 'usr-02',
-    fullName: 'ThS. Lê Thu Hà',
-    email: 'ha.le@3t.edu.vn',
-    roleGroup: 'Giảng viên / Trợ giảng',
-    roleDetail: 'Giảng viên chính',
-    cohortAssigned: 'Khóa K01 (Phân Tích Dữ Liệu Kinh Doanh)',
-    locked: false,
-  },
-  {
-    id: 'usr-03',
-    fullName: 'Đặng Hoàng Nam',
-    email: 'nam.dang@3t.edu.vn',
-    roleGroup: 'Giảng viên / Trợ giảng',
-    roleDetail: 'Trợ giảng',
-    cohortAssigned: 'Khóa K01, Khóa K02 (Kỹ Sư AI Thực Chiến)',
-    locked: false,
-  },
-  {
-    id: 'usr-04',
-    fullName: 'Nguyễn Văn An',
-    email: 'an.nguyen@gmail.com',
-    roleGroup: 'Học viên',
-    roleDetail: 'Học viên chính thức',
-    cohortAssigned: 'Khóa K01 (Kỹ Sư AI), Khóa K04 (Python Dữ Liệu)',
-    locked: false,
-  },
-  {
-    id: 'usr-05',
-    fullName: 'Trần Thị Mai Anh',
-    email: 'maianh.tran@outlook.com',
-    roleGroup: 'Học viên',
-    roleDetail: 'Học viên chính thức',
-    cohortAssigned: 'Khóa K01 (Kỹ Sư AI Thực Chiến)',
-    locked: false,
-  },
-  {
-    id: 'usr-06',
-    fullName: 'Lê Hoàng Việt',
-    email: 'viet.le@techcorp.vn',
-    roleGroup: 'Học viên',
-    roleDetail: 'Học viên chính thức',
-    cohortAssigned: 'Khóa K01 (Kỹ Sư AI Thực Chiến)',
-    locked: true,
-  },
-  {
-    id: 'usr-07',
-    fullName: 'Phạm Thu Trang',
-    email: 'trang.pham@3t.edu.vn',
-    roleGroup: 'Quản trị viên',
-    roleDetail: 'Quản lý đào tạo & giáo vụ',
-    cohortAssigned: 'Toàn bộ lớp học',
-    locked: false,
-  },
-];
-
-interface EligibleGraduateItem {
-  id: string;
-  studentName: string;
-  studentEmail: string;
-  cohortCode: string;
-  courseTitle: string;
-  completedSessionsText: string;
-  finalExamScore: number;
-  issuedCertCode?: string;
-}
-
-const INITIAL_ELIGIBLE_GRADUATES: EligibleGraduateItem[] = [
-  {
-    id: 'grad-01',
-    studentName: 'Phạm Quốc Bảo',
-    studentEmail: 'bao.pham@gmail.com',
-    cohortCode: 'AI-ENG-2026-K01',
-    courseTitle: 'Kỹ Sư AI Thực Chiến & Tự Động Hóa Doanh Nghiệp',
-    completedSessionsText: '6/6 buổi học',
-    finalExamScore: 92,
-  },
-  {
-    id: 'grad-02',
-    studentName: 'Trần Thị Mai Anh',
-    studentEmail: 'maianh.tran@outlook.com',
-    cohortCode: 'AI-ENG-2026-K01',
-    courseTitle: 'Kỹ Sư AI Thực Chiến & Tự Động Hóa Doanh Nghiệp',
-    completedSessionsText: '6/6 buổi học',
-    finalExamScore: 88,
-  },
-  {
-    id: 'grad-03',
-    studentName: 'Vũ Đình Khôi',
-    studentEmail: 'khoi.vu@fpt.com',
-    cohortCode: 'PY-DATA-2025-K04',
-    courseTitle: 'Lập Trình Python & Xử Lý Dữ Liệu Thực Chiến',
-    completedSessionsText: '6/6 buổi học',
-    finalExamScore: 85,
-  },
-];
 
 interface WeeklyTimetableRow {
   cohortCode: string;
@@ -293,15 +183,30 @@ export const AdminPortalView: React.FC = () => {
     adminSidebarTab,
     setAdminSidebarTab,
     courses,
-    cohorts,
+    cohorts: contextCohorts,
     createCohort,
     updateCohortSchedule,
     receipts,
-    certificates,
-    issueNewCertificate,
+    certificates: contextCertificates,
     toggleCertificateRevoke,
+    setRole,
     navigate,
   } = useAcademy();
+
+  const { data: overviewData, refetch: refetchAdminOverview } = useAsyncData(
+    () => adminApi.getAdminOverview(),
+    []
+  );
+  const { data: sepayTransactionsData } = useAsyncData(
+    () => adminApi.getSepayTransactions(),
+    []
+  );
+
+  const cohorts = overviewData?.cohorts ?? contextCohorts;
+  const certificates = overviewData?.certificates ?? contextCertificates;
+  const enrollmentsList = overviewData?.enrollments ?? [];
+  const chatMessagesList = overviewData?.chatMessages ?? [];
+  const notificationsList = overviewData?.notifications ?? [];
 
   // Sub-tabs cho mục Tổng quan học viện (/admin)
   const [overviewSubTab, setOverviewSubTab] = useState<
@@ -351,29 +256,48 @@ export const AdminPortalView: React.FC = () => {
   ]);
   const [editingCohortScheduleId, setEditingCohortScheduleId] = useState<string | null>(null);
   const [newCohortInstructor, setNewCohortInstructor] = useState('TS. Trần Minh Khoa');
-  const [newCohortTa, setNewCohortTa] = useState('Đặng Hoàng Nam');
+  const [newCohortTa, setNewCohortTa] = useState('ThS. Nguyễn Thu Hà');
   const [cohortCreatedNotice, setCohortCreatedNotice] = useState<string | null>(null);
 
-  // Tab 4: Học viên & Giảng viên
-  const [accounts, setAccounts] = useState<UserAccountItem[]>(INITIAL_ACCOUNTS);
+  // Tab 4: Học viên, Giảng viên & Quản trị viên
+  const [localAccountsOverride, setLocalAccountsOverride] = useState<AdminUserAccountItem[] | null>(
+    null
+  );
+  const accounts = localAccountsOverride ?? overviewData?.accounts ?? [];
   const [roleFilter, setRoleFilter] = useState<
-    'ALL' | 'Học viên' | 'Giảng viên / Trợ giảng' | 'Quản trị viên'
+    'ALL' | 'Học viên' | 'Giảng viên' | 'Quản trị viên'
   >('ALL');
   const [userSearch, setUserSearch] = useState('');
-  const [showAddStaffForm, setShowAddStaffForm] = useState(false);
-  const [staffName, setStaffName] = useState('');
-  const [staffEmail, setStaffEmail] = useState('');
-  const [staffRoleDetail, setStaffRoleDetail] = useState<'Giảng viên chính' | 'Trợ giảng'>(
-    'Giảng viên chính'
-  );
-  const [staffCohortAssigned, setStaffCohortAssigned] = useState('Khóa K02 (Kỹ Sư AI Thực Chiến)');
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+
+  // Form State cho Tạo tài khoản mới (Khớp lược đồ database: accounts, user_profiles, instructor_profiles)
+  const [formRole, setFormRole] = useState<'STUDENT' | 'INSTRUCTOR' | 'ADMIN'>('STUDENT');
+  // NOT NULL fields
+  const [formEmail, setFormEmail] = useState('');
+  const [formPassword, setFormPassword] = useState('3T@Pass2026');
+  const [formFullName, setFormFullName] = useState('');
+  const [formHeadline, setFormHeadline] = useState('');
+  // Nullable fields
+  const [formAvatarUrl, setFormAvatarUrl] = useState('');
+  const [formBio, setFormBio] = useState('');
+  const [formCareerGoal, setFormCareerGoal] = useState('');
+  const [formInterviewCredits, setFormInterviewCredits] = useState<number>(2);
+  const [formOrganization, setFormOrganization] = useState('');
+  const [formYearsOfExp, setFormYearsOfExp] = useState<string>('');
+  const [formExpertiseSummary, setFormExpertiseSummary] = useState('');
+  const [formLinkedin, setFormLinkedin] = useState('');
+  const [formGithub, setFormGithub] = useState('');
+  const [formValidationError, setFormValidationError] = useState<string | null>(null);
+  const [isSubmittingAccount, setIsSubmittingAccount] = useState(false);
   const [accountNotice, setAccountNotice] = useState<string | null>(null);
 
   // Tab 5: Học phí & Chứng chỉ
   const [financeSubTab, setFinanceSubTab] = useState<'TUITION' | 'CERTIFICATES'>('TUITION');
   const [receiptSearch, setReceiptSearch] = useState('');
-  const [eligibleGraduates, setEligibleGraduates] =
-    useState<EligibleGraduateItem[]>(INITIAL_ELIGIBLE_GRADUATES);
+  const [localGraduatesOverride, setLocalGraduatesOverride] = useState<
+    EligibleGraduateItem[] | null
+  >(null);
+  const eligibleGraduates = localGraduatesOverride ?? overviewData?.eligibleGraduates ?? [];
   const [certIssuedToast, setCertIssuedToast] = useState<string | null>(null);
 
   // Sidebar items (5 mục tinh gọn của Cổng Quản Trị Học Viện)
@@ -440,7 +364,7 @@ export const AdminPortalView: React.FC = () => {
   };
 
   // Đổi thứ tự buổi học trong Phiên bản đề cương đang mở (Admin độc quyền)
-  const handleMoveSessionOrder = (index: number, direction: 'UP' | 'DOWN') => {
+  const handleMoveSessionOrder = async (index: number, direction: 'UP' | 'DOWN') => {
     if (activeVersionObj.isLockedHistorical) return;
     const targetIdx = direction === 'UP' ? index - 1 : index + 1;
     const list = [...activeVersionObj.sessions];
@@ -449,6 +373,11 @@ export const AdminPortalView: React.FC = () => {
     list[index] = list[targetIdx];
     list[targetIdx] = temp;
     updateActiveVersionSessions(list);
+    await adminApi.manageCourses({
+      id: selectedCourseForVersionId,
+      versionId: activeVersionObj.versionId,
+      syllabusTemplate: list,
+    });
     setCourseSavedNotice(
       `Đã cập nhật thứ tự buổi học trong ${activeVersionObj.versionLabel} (Không ảnh hưởng tới Phiên bản 2025 của khóa cũ).`
     );
@@ -456,13 +385,18 @@ export const AdminPortalView: React.FC = () => {
   };
 
   // Lưu tên buổi học chỉnh sửa trong Phiên bản đề cương 2026
-  const handleSaveEditedSessionTitle = (order: number) => {
+  const handleSaveEditedSessionTitle = async (order: number) => {
     if (!editingSessionTitleVal.trim() || activeVersionObj.isLockedHistorical) return;
     const updated = activeVersionObj.sessions.map((s) =>
       s.order === order ? { ...s, title: editingSessionTitleVal.trim() } : s
     );
     updateActiveVersionSessions(updated);
     setEditingSessionOrder(null);
+    await adminApi.manageCourses({
+      id: selectedCourseForVersionId,
+      versionId: activeVersionObj.versionId,
+      syllabusTemplate: updated,
+    });
     setCourseSavedNotice(
       `Đã cập nhật tên Buổi ${order} trong ${activeVersionObj.versionLabel}.`
     );
@@ -470,7 +404,7 @@ export const AdminPortalView: React.FC = () => {
   };
 
   // Thêm buổi học mới vào Phiên bản đề cương 2026
-  const handleAddSessionToVersion = (e: React.FormEvent) => {
+  const handleAddSessionToVersion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSessionTitleInput.trim() || activeVersionObj.isLockedHistorical) return;
     const nextOrder = activeVersionObj.sessions.length + 1;
@@ -488,6 +422,11 @@ export const AdminPortalView: React.FC = () => {
     updateActiveVersionSessions(nextList);
     setNewSessionTitleInput('');
     setNewSessionSummaryInput('');
+    await adminApi.manageCourses({
+      id: selectedCourseForVersionId,
+      versionId: activeVersionObj.versionId,
+      syllabusTemplate: nextList,
+    });
     setCourseSavedNotice(
       `Đã thêm Buổi ${nextOrder} vào ${activeVersionObj.versionLabel} (Đợt K01 năm 2025 vẫn giữ nguyên 6 buổi cũ).`
     );
@@ -495,7 +434,7 @@ export const AdminPortalView: React.FC = () => {
   };
 
   // Tạo nhánh phiên bản đề cương mới (VD: Phiên bản 2027)
-  const handleCloneNewVersion = () => {
+  const handleCloneNewVersion = async () => {
     const newVerId = `v${2025 + currentVersionsList.length}`;
     const newVer: CurriculumVersionItem = {
       versionId: newVerId,
@@ -510,13 +449,18 @@ export const AdminPortalView: React.FC = () => {
       [selectedCourseForVersionId]: [...currentVersionsList, newVer],
     }));
     setActiveVersionId(newVerId);
+    await adminApi.manageCourses({
+      id: selectedCourseForVersionId,
+      versionId: newVerId,
+      syllabusTemplate: newVer.sessions,
+    });
     setCourseSavedNotice(
       `Đã tạo nhánh đề cương "${newVer.versionLabel}" độc lập để chỉnh sửa cho đợt khai giảng mới.`
     );
     setTimeout(() => setCourseSavedNotice(null), 4000);
   };
 
-  const handleSaveNewCourse = (e: React.FormEvent) => {
+  const handleSaveNewCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!courseFormTitle.trim()) return;
     const parsedSkills = courseFormSkills
@@ -566,6 +510,7 @@ export const AdminPortalView: React.FC = () => {
         },
       ],
     };
+    await adminApi.manageCourses(newCourse);
     setCourseCatalog((prev) => [newCourse, ...prev]);
     setSelectedCourseForVersionId(newCourse.id);
     setShowCreateCourseForm(false);
@@ -617,7 +562,11 @@ export const AdminPortalView: React.FC = () => {
       tuitionVnd: Number(newCohortTuition) || 8500000,
       startDate: newCohortStart,
       scheduleSlots: newCohortScheduleSlots,
+      instructorName: newCohortInstructor,
+      taName: newCohortTa,
     });
+
+    await refetchAdminOverview();
 
     if (editingCohortScheduleId) {
       updateCohortSchedule(editingCohortScheduleId, newCohortScheduleSlots);
@@ -645,75 +594,169 @@ export const AdminPortalView: React.FC = () => {
     setTimeout(() => setCohortCreatedNotice(null), 4500);
   };
 
-  // Handlers for Tab 4: Học viên & Giảng viên
-  const handleAddStaff = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!staffName.trim() || !staffEmail.trim()) return;
-    const newAcc: UserAccountItem = {
-      id: `usr-${Date.now()}`,
-      fullName: staffName.trim(),
-      email: staffEmail.trim(),
-      roleGroup: 'Giảng viên / Trợ giảng',
-      roleDetail: staffRoleDetail,
-      cohortAssigned: staffCohortAssigned.trim() || 'Chưa phân công lớp',
-      locked: false,
-    };
-    setAccounts((prev) => [newAcc, ...prev]);
-    setStaffName('');
-    setStaffEmail('');
-    setShowAddStaffForm(false);
-    setAccountNotice(`Đã tạo tài khoản ${staffRoleDetail} cho ${newAcc.fullName}.`);
-    setTimeout(() => setAccountNotice(null), 4000);
+  // Handlers for Tab 4: Học viên, Giảng viên & Quản trị viên
+  const handleResetAddAccountForm = () => {
+    setFormEmail('');
+    setFormPassword('3T@Pass2026');
+    setFormFullName('');
+    setFormHeadline('');
+    setFormAvatarUrl('');
+    setFormBio('');
+    setFormCareerGoal('');
+    setFormInterviewCredits(2);
+    setFormOrganization('');
+    setFormYearsOfExp('');
+    setFormExpertiseSummary('');
+    setFormLinkedin('');
+    setFormGithub('');
+    setFormValidationError(null);
+    setShowAddAccountModal(false);
   };
 
-  const handleToggleLockAccount = (id: string) => {
-    setAccounts((prev) =>
-      prev.map((acc) => {
-        if (acc.id !== id) return acc;
-        const nextLocked = !acc.locked;
-        setAccountNotice(
-          nextLocked
-            ? `Đã khóa tài khoản của ${acc.fullName}.`
-            : `Đã mở khóa tài khoản của ${acc.fullName}.`
-        );
-        return { ...acc, locked: nextLocked };
-      })
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormValidationError(null);
+
+    const trimmedEmail = formEmail.trim();
+    const trimmedPassword = formPassword.trim();
+    const trimmedFullName = formFullName.trim();
+    const trimmedHeadline = formHeadline.trim();
+
+    // 1. Kiểm tra các trường bắt buộc
+    if (!trimmedEmail) {
+      setFormValidationError('Vui lòng nhập Email tài khoản.');
+      return;
+    }
+    if (!trimmedPassword) {
+      setFormValidationError('Vui lòng nhập Mật khẩu khởi tạo.');
+      return;
+    }
+    if (!trimmedFullName) {
+      setFormValidationError('Vui lòng nhập Họ và tên.');
+      return;
+    }
+    if (formRole === 'INSTRUCTOR' && !trimmedHeadline) {
+      setFormValidationError(
+        'Vui lòng nhập Tiêu đề / Chức danh chuyên môn của Giảng viên.'
+      );
+      return;
+    }
+
+    try {
+      setIsSubmittingAccount(true);
+      const res = await adminApi.createAccount({
+        email: trimmedEmail,
+        password: trimmedPassword,
+        role: formRole,
+        fullName: trimmedFullName,
+        avatarUrl: formAvatarUrl.trim() || undefined,
+        bio: formBio.trim() || undefined,
+        careerGoal: formCareerGoal.trim() || undefined,
+        interviewCredits:
+          typeof formInterviewCredits === 'number'
+            ? formInterviewCredits
+            : formRole === 'STUDENT'
+            ? 2
+            : 99,
+        instructorHeadline: formRole === 'INSTRUCTOR' ? trimmedHeadline : undefined,
+        instructorOrganization:
+          formRole === 'INSTRUCTOR' && formOrganization.trim()
+            ? formOrganization.trim()
+            : undefined,
+        instructorYearsOfExperience:
+          formRole === 'INSTRUCTOR' && formYearsOfExp
+            ? Number(formYearsOfExp)
+            : undefined,
+        instructorExpertiseSummaryMd:
+          formRole === 'INSTRUCTOR' && formExpertiseSummary.trim()
+            ? formExpertiseSummary.trim()
+            : undefined,
+        instructorSocialLinks:
+          formRole === 'INSTRUCTOR' && (formLinkedin.trim() || formGithub.trim())
+            ? {
+                linkedin: formLinkedin.trim() || undefined,
+                github: formGithub.trim() || undefined,
+              }
+            : undefined,
+      });
+
+      const newAcc = res.account;
+      setLocalAccountsOverride([newAcc, ...accounts]);
+      const roleText =
+        formRole === 'ADMIN'
+          ? 'Quản trị viên'
+          : formRole === 'INSTRUCTOR'
+          ? 'Giảng viên'
+          : 'Học viên';
+      setAccountNotice(
+        `Đã tạo tài khoản ${roleText} thành công cho ${newAcc.fullName} (${newAcc.email}).`
+      );
+      handleResetAddAccountForm();
+      setTimeout(() => setAccountNotice(null), 4500);
+    } catch (err: any) {
+      setFormValidationError(err.message || 'Lỗi khi tạo tài khoản, vui lòng thử lại.');
+    } finally {
+      setIsSubmittingAccount(false);
+    }
+  };
+
+  const handleToggleLockAccount = async (id: string) => {
+    const targetAcc = accounts.find((a) => a.id === id);
+    if (!targetAcc) return;
+    const nextLocked = !targetAcc.locked;
+    const apiRole =
+      targetAcc.roleCategory === 'Quản trị viên'
+        ? 'ADMIN'
+        : targetAcc.roleCategory === 'Giảng viên'
+        ? 'INSTRUCTOR'
+        : 'STUDENT';
+    await adminApi.manageUsers({
+      userId: id,
+      role: apiRole,
+      isActive: !nextLocked,
+    });
+    setLocalAccountsOverride(
+      accounts.map((acc) => (acc.id === id ? { ...acc, locked: nextLocked } : acc))
+    );
+    setAccountNotice(
+      nextLocked
+        ? `Đã khóa tài khoản của ${targetAcc.fullName}.`
+        : `Đã mở khóa tài khoản của ${targetAcc.fullName}.`
     );
     setTimeout(() => setAccountNotice(null), 3500);
   };
 
   // Handlers for Tab 6: Học phí & Chứng chỉ
-  const handleIssueSingleCertificate = (grad: EligibleGraduateItem) => {
+  const handleIssueSingleCertificate = async (grad: EligibleGraduateItem) => {
     if (grad.issuedCertCode) return;
-    const code = issueNewCertificate(
-      grad.studentName,
-      grad.studentEmail,
-      grad.cohortCode,
-      grad.finalExamScore
+    const res = await adminApi.issueCertificatesBatch([grad.id]);
+    const code = res.certificateCodes[0] || `CERT-3T-2026-8899`;
+    setLocalGraduatesOverride(
+      eligibleGraduates.map((item) =>
+        item.id === grad.id ? { ...item, issuedCertCode: code } : item
+      )
     );
-    setEligibleGraduates((prev) =>
-      prev.map((item) => (item.id === grad.id ? { ...item, issuedCertCode: code } : item))
-    );
+    await refetchAdminOverview();
     setCertIssuedToast(`Đã cấp chứng chỉ mã ${code} cho học viên ${grad.studentName}.`);
     setTimeout(() => setCertIssuedToast(null), 4000);
   };
 
-  const handleBatchIssueCertificates = () => {
+  const handleBatchIssueCertificates = async () => {
     const pending = eligibleGraduates.filter((g) => !g.issuedCertCode);
     if (pending.length === 0) return;
 
+    const enrollmentIds = pending.map((g) => g.id);
+    const res = await adminApi.issueCertificatesBatch(enrollmentIds);
+
+    let codeIdx = 0;
     const updated = eligibleGraduates.map((grad) => {
       if (grad.issuedCertCode) return grad;
-      const code = issueNewCertificate(
-        grad.studentName,
-        grad.studentEmail,
-        grad.cohortCode,
-        grad.finalExamScore
-      );
+      const code = res.certificateCodes[codeIdx++] || `CERT-3T-2026-8899`;
       return { ...grad, issuedCertCode: code };
     });
 
-    setEligibleGraduates(updated);
+    setLocalGraduatesOverride(updated);
+    await refetchAdminOverview();
     setCertIssuedToast(
       `Đã duyệt và cấp chứng chỉ tốt nghiệp cho toàn bộ ${pending.length} học viên đủ điều kiện.`
     );
@@ -721,7 +764,7 @@ export const AdminPortalView: React.FC = () => {
   };
 
   const filteredAccounts = accounts.filter((acc) => {
-    const matchRole = roleFilter === 'ALL' || acc.roleGroup === roleFilter;
+    const matchRole = roleFilter === 'ALL' || acc.roleCategory === roleFilter;
     const matchQuery =
       !userSearch.trim() ||
       acc.fullName.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -730,7 +773,20 @@ export const AdminPortalView: React.FC = () => {
     return matchRole && matchQuery;
   });
 
-  const filteredReceipts = receipts.filter(
+  const combinedReceipts =
+    receipts.length > 0
+      ? receipts
+      : (sepayTransactionsData ?? []).map((tx) => ({
+          orderCode: tx.orderCode ?? 'UNMATCHED',
+          cohortCode: tx.transferContent.split(' ')[1] || 'AI-ENG-K01',
+          courseTitle: 'Kỹ Sư AI Thực Chiến: Xây Dựng Hệ Thống RAG & Đa Tác Tử Doanh Nghiệp',
+          amountVnd: tx.amountVnd,
+          paidAt: tx.processedAt,
+          bankName: 'MBBank',
+          transactionRef: tx.referenceNumber,
+        }));
+
+  const filteredReceipts = combinedReceipts.filter(
     (r) =>
       r.orderCode.toLowerCase().includes(receiptSearch.toLowerCase()) ||
       r.cohortCode.toLowerCase().includes(receiptSearch.toLowerCase()) ||
@@ -784,17 +840,32 @@ export const AdminPortalView: React.FC = () => {
           </nav>
         </div>
 
-        {/* Bottom Admin Info */}
-        <div className="pt-4 border-t border-[#E2ECE7] dark:border-[#1E2D24] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#D1FAE5] dark:bg-emerald-950 text-[#065F46] dark:text-emerald-300 flex items-center justify-center shrink-0">
-            <ShieldCheck className="w-5 h-5" />
+        {/* Bottom Admin Info & Logout */}
+        <div className="pt-4 border-t border-[#E2ECE7] dark:border-[#1E2D24] space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#D1FAE5] dark:bg-emerald-950 text-[#065F46] dark:text-emerald-300 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold truncate">Phạm Thu Trang</p>
+              <p className="text-[11px] text-[#059669] dark:text-[#34D399] font-semibold truncate">
+                Quản lý Đào tạo &amp; Giáo vụ
+              </p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <p className="text-xs font-bold truncate">Phạm Thu Trang</p>
-            <p className="text-[11px] text-[#059669] dark:text-[#34D399] font-semibold truncate">
-              Quản lý Đào tạo &amp; Giáo vụ
-            </p>
-          </div>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await authApi.logout();
+              setRole('GUEST');
+              navigate('/login');
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] hover:border-[#EF4444] text-xs font-semibold text-[#475569] dark:text-[#94A3B8] hover:text-[#EF4444] transition-colors cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Đăng xuất quyền quản trị</span>
+          </button>
         </div>
       </aside>
 
@@ -1137,52 +1208,53 @@ export const AdminPortalView: React.FC = () => {
               {/* CHẾ ĐỘ XEM 2: PHÂN TÍCH ĐÀO TẠO & HIỆU QUẢ AI */}
               {overviewSubTab === 'TRAINING_AI_ANALYTICS' && (
                 <div className="space-y-6">
-                  {/* 3 Thẻ đối chiếu nhanh từ enrollments.risk_level, chat_messages.detected_topic & notifications.acted_at */}
+                  {/* 3 Thẻ thống kê nhanh */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white dark:bg-[#111A15] rounded-2xl border border-[#E2ECE7] dark:border-[#1E2D24] p-5 space-y-1">
                       <span className="text-[11px] font-mono font-bold text-[#059669] dark:text-[#34D399]">
-                        ENROLLMENTS · RISK_LEVEL
+                        MỨC ĐỘ CHUYÊN CẦN CỦA HỌC VIÊN
                       </span>
                       <div className="text-lg font-bold font-mono">
-                        LOW: {INITIAL_ENROLLMENTS.filter((e) => e.riskLevel === 'LOW').length} · MEDIUM:{' '}
-                        {INITIAL_ENROLLMENTS.filter((e) => e.riskLevel === 'MEDIUM').length} · HIGH:{' '}
-                        {INITIAL_ENROLLMENTS.filter((e) => e.riskLevel === 'HIGH').length}
+                        Đúng hạn: {enrollmentsList.filter((e) => e.riskLevel === 'LOW').length} · Lưu ý:{' '}
+                        {enrollmentsList.filter((e) => e.riskLevel === 'MEDIUM').length} · Cần hỗ trợ:{' '}
+                        {enrollmentsList.filter((e) => e.riskLevel === 'HIGH').length}
                       </div>
                       <p className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                        Phân nhóm nguy cơ bỏ học tự động từ <code className="font-mono">dropout_risk_score</code>.
+                        Phân loại mức độ chuyên cần và chuyên cần của học viên trên toàn hệ thống.
                       </p>
                     </div>
 
                     <div className="bg-white dark:bg-[#111A15] rounded-2xl border border-[#E2ECE7] dark:border-[#1E2D24] p-5 space-y-1">
                       <span className="text-[11px] font-mono font-bold text-[#059669] dark:text-[#34D399]">
-                        CHAT_MESSAGES · DETECTED_TOPIC
+                        CHỦ ĐỀ THẮC MẮC NHIỀU NHẤT
                       </span>
                       <div className="text-lg font-bold">
                         RAG &amp; Vector Search, PostgreSQL &amp; SQL
                       </div>
                       <p className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                        {INITIAL_CHAT_MESSAGES.filter((m) => m.detectedTopic !== null).length} chủ đề kỹ thuật được gán nhãn tự động khi học viên hỏi AI.
+                        {chatMessagesList.filter((m) => m.detectedTopic !== null).length} chủ đề trọng tâm được học viên đặt câu hỏi và thảo luận nhiều nhất.
                       </p>
                     </div>
 
                     <div className="bg-white dark:bg-[#111A15] rounded-2xl border border-[#E2ECE7] dark:border-[#1E2D24] p-5 space-y-1">
                       <span className="text-[11px] font-mono font-bold text-[#059669] dark:text-[#34D399]">
-                        NOTIFICATIONS · ACTED_AT
+                        HIỆU QUẢ LỜI NHẮC ÔN TẬP
                       </span>
                       <div className="text-lg font-bold font-mono text-[#10B981]">
-                        {INITIAL_NOTIFICATIONS.filter((n) => n.actedAt !== null).length}/
-                        {INITIAL_NOTIFICATIONS.length} HV quay lại học (
-                        {Math.round(
-                          (INITIAL_NOTIFICATIONS.filter((n) => n.actedAt !== null).length /
-                            INITIAL_NOTIFICATIONS.length) *
-                            100
-                        )}
+                        {notificationsList.filter((n) => n.actedAt !== null).length}/
+                        {notificationsList.length} HV quay lại học (
+                        {notificationsList.length > 0
+                          ? Math.round(
+                              (notificationsList.filter((n) => n.actedAt !== null).length /
+                                notificationsList.length) *
+                                100
+                            )
+                          : 0}
                         %)
                       </div>
                       <p className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                        Đã đọc (<code className="font-mono">is_read</code>):{' '}
-                        {INITIAL_NOTIFICATIONS.filter((n) => n.isRead).length}/
-                        {INITIAL_NOTIFICATIONS.length} lượt nhắc AI.
+                        Đã xem thông báo: {notificationsList.filter((n) => n.isRead).length}/
+                        {notificationsList.length} lượt nhắc.
                       </p>
                     </div>
                   </div>
@@ -1243,10 +1315,10 @@ export const AdminPortalView: React.FC = () => {
                           </span>
                         </div>
                         <h2 className="text-base sm:text-lg font-bold">
-                          Câu hỏi Trợ giảng AI, Lượt luyện phỏng vấn &amp; Độ trễ (`latency_ms`)
+                          Số câu hỏi giải đáp, Lượt luyện phỏng vấn &amp; Tốc độ phản hồi
                         </h2>
                         <p className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                          Thống kê số câu hỏi Trợ giảng AI giải đáp theo tuần, số buổi luyện phỏng vấn đã thực hiện và độ trễ phản hồi trung bình từ bảng <code className="font-mono">chat_messages</code>.
+                          Thống kê số câu hỏi giải đáp theo tuần, số buổi luyện phỏng vấn và tốc độ phản hồi trung bình của hệ thống.
                         </p>
                       </div>
 
@@ -1257,8 +1329,8 @@ export const AdminPortalView: React.FC = () => {
                         maxY={2600}
                         unit=" câu"
                         secondaryUnit="ms"
-                        primarySeriesLabel="Câu hỏi Trợ giảng AI giải đáp"
-                        secondarySeriesLabel="Độ trễ phản hồi (latency_ms)"
+                        primarySeriesLabel="Câu hỏi giải đáp"
+                        secondarySeriesLabel="Độ trễ phản hồi (ms)"
                       />
 
                       <div className="pt-2 border-t border-[#E2ECE7] dark:border-[#1E2D24] flex flex-wrap items-center justify-between gap-2 text-xs text-[#475569] dark:text-[#94A3B8]">
@@ -1766,14 +1838,14 @@ export const AdminPortalView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold mb-1">Trợ giảng phụ trách</label>
+                  <label className="block text-xs font-semibold mb-1">Giảng viên đồng hành</label>
                   <select
                     value={newCohortTa}
                     onChange={(e) => setNewCohortTa(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm"
                   >
-                    <option value="Đặng Hoàng Nam">Đặng Hoàng Nam</option>
-                    <option value="Nguyễn Hoàng Long">Nguyễn Hoàng Long</option>
+                    <option value="ThS. Nguyễn Thu Hà">ThS. Nguyễn Thu Hà</option>
+                    <option value="TS. Trần Minh Khoa">TS. Trần Minh Khoa</option>
                   </select>
                 </div>
               </div>
@@ -2100,25 +2172,28 @@ export const AdminPortalView: React.FC = () => {
         )}
 
         {/* =========================================================
-            5. HỌC VIÊN & GIẢNG VIÊN (/admin/users)
+            5. HỌC VIÊN, GIẢNG VIÊN & QUẢN TRỊ VIÊN (/admin/users)
            ========================================================= */}
         {adminSidebarTab === 'USERS_STAFF' && (
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">Học viên &amp; Giảng viên</h1>
+                <h1 className="text-2xl font-bold tracking-tight">Học viên, Giảng viên &amp; Quản trị viên</h1>
                 <p className="text-sm text-[#475569] dark:text-[#94A3B8] mt-1">
-                  Quản lý danh sách tài khoản trên toàn hệ thống, phân quyền và khóa hoặc mở khóa tài khoản.
+                  Quản lý và cấp quyền truy cập tài khoản toàn hệ thống cho học viên, giảng viên và quản trị viên.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={() => setShowAddStaffForm((prev) => !prev)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold cursor-pointer"
+                onClick={() => {
+                  setShowAddAccountModal((prev) => !prev);
+                  setFormValidationError(null);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold cursor-pointer transition-colors shadow-xs"
               >
-                <Plus className="w-4 h-4" />
-                Thêm tài khoản Giảng viên / Trợ giảng
+                <UserPlus className="w-4 h-4" />
+                <span>Thêm tài khoản mới</span>
               </button>
             </div>
 
@@ -2129,63 +2204,341 @@ export const AdminPortalView: React.FC = () => {
               </div>
             )}
 
-            {/* Form thêm tài khoản Giảng viên / Trợ giảng */}
-            {showAddStaffForm && (
+            {/* Form thêm tài khoản mới (Học viên, Giảng viên, Quản trị viên) */}
+            {showAddAccountModal && (
               <form
-                onSubmit={handleAddStaff}
-                className="bg-white dark:bg-[#111A15] rounded-2xl border border-[#10B981] p-6 space-y-4"
+                onSubmit={handleCreateAccount}
+                className="bg-white dark:bg-[#111A15] rounded-2xl border-2 border-[#10B981] p-6 space-y-6 shadow-sm"
               >
-                <h2 className="text-base font-bold">
-                  Thêm tài khoản Giảng viên / Trợ giảng mới
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <input
-                    type="text"
-                    required
-                    value={staffName}
-                    onChange={(e) => setStaffName(e.target.value)}
-                    placeholder="Họ và tên (VD: ThS. Vũ Hoàng)"
-                    className="px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm"
-                  />
-                  <input
-                    type="email"
-                    required
-                    value={staffEmail}
-                    onChange={(e) => setStaffEmail(e.target.value)}
-                    placeholder="Email công việc"
-                    className="px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm"
-                  />
-                  <select
-                    value={staffRoleDetail}
-                    onChange={(e) =>
-                      setStaffRoleDetail(e.target.value as 'Giảng viên chính' | 'Trợ giảng')
-                    }
-                    className="px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm"
-                  >
-                    <option value="Giảng viên chính">Giảng viên chính</option>
-                    <option value="Trợ giảng">Trợ giảng</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={staffCohortAssigned}
-                    onChange={(e) => setStaffCohortAssigned(e.target.value)}
-                    placeholder="Lớp phân công"
-                    className="px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm"
-                  />
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E2ECE7] dark:border-[#1E2D24] pb-3">
+                  <div>
+                    <h2 className="text-base font-bold text-[#0F172A] dark:text-[#ECFDF5]">
+                      Khởi tạo tài khoản hệ thống mới
+                    </h2>
+                    <p className="text-xs text-[#475569] dark:text-[#94A3B8] mt-0.5">
+                      Điền thông tin để tạo tài khoản mới. Các trường có dấu (<span className="text-red-500 font-bold">*</span>) là bắt buộc.
+                    </p>
+                  </div>
+
+                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] text-[#475569] dark:text-[#94A3B8]">
+                    Tài khoản nội bộ
+                  </span>
                 </div>
-                <div className="flex justify-end gap-2">
+
+                {/* Chọn vai trò (STUDENT, INSTRUCTOR, ADMIN) */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-[#0F172A] dark:text-[#ECFDF5]">
+                    Chọn vai trò tài khoản <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormRole('STUDENT');
+                        if (formInterviewCredits === 99) setFormInterviewCredits(2);
+                      }}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        formRole === 'STUDENT'
+                          ? 'border-[#10B981] bg-[#10B981]/10 text-[#065F46] dark:text-[#34D399] ring-1 ring-[#10B981]'
+                          : 'border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-[#475569] dark:text-[#94A3B8] hover:border-[#10B981]/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+                        <GraduationCap className="w-4 h-4 text-[#10B981]" />
+                        <span>Học viên</span>
+                      </div>
+                      <p className="text-[11px] mt-1 text-[#64748B] dark:text-[#94A3B8]">
+                        Tài khoản người học, nhận lượt phỏng vấn và nộp bài tập.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormRole('INSTRUCTOR');
+                        setFormInterviewCredits(99);
+                      }}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        formRole === 'INSTRUCTOR'
+                          ? 'border-blue-500 bg-blue-500/10 text-blue-700 dark:text-blue-300 ring-1 ring-blue-500'
+                          : 'border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-[#475569] dark:text-[#94A3B8] hover:border-blue-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+                        <Users className="w-4 h-4 text-blue-500" />
+                        <span>Giảng viên</span>
+                      </div>
+                      <p className="text-[11px] mt-1 text-[#64748B] dark:text-[#94A3B8]">
+                        Giảng dạy trực tuyến, quản lý lớp và tạo bài kiểm tra.
+                      </p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormRole('ADMIN');
+                        setFormInterviewCredits(99);
+                      }}
+                      className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                        formRole === 'ADMIN'
+                          ? 'border-purple-500 bg-purple-500/10 text-purple-700 dark:text-purple-300 ring-1 ring-purple-500'
+                          : 'border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-[#475569] dark:text-[#94A3B8] hover:border-purple-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 font-bold text-xs sm:text-sm">
+                        <Shield className="w-4 h-4 text-purple-500" />
+                        <span>Quản trị viên</span>
+                      </div>
+                      <p className="text-[11px] mt-1 text-[#64748B] dark:text-[#94A3B8]">
+                        Quản lý toàn bộ học viện, duyệt chứng chỉ và tài chính.
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 1. Thông tin đăng nhập */}
+                <div className="space-y-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-[#059669] dark:text-[#34D399]">
+                    1. Thông tin đăng nhập
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1">
+                        Email đăng nhập <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={formEmail}
+                        onChange={(e) => setFormEmail(e.target.value)}
+                        placeholder="VD: hocvien.ai@3tacademy.vn"
+                        className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm focus:outline-none focus:border-[#10B981]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1">
+                        Mật khẩu khởi tạo <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formPassword}
+                        onChange={(e) => setFormPassword(e.target.value)}
+                        placeholder="Mật khẩu đăng nhập ban đầu"
+                        className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm font-mono focus:outline-none focus:border-[#10B981]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1">
+                        Họ và tên <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formFullName}
+                        onChange={(e) => setFormFullName(e.target.value)}
+                        placeholder="VD: Nguyễn Văn An / TS. Trần Minh Khoa"
+                        className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm focus:outline-none focus:border-[#10B981]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Thông tin cá nhân (Tùy chọn) */}
+                <div className="space-y-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-[#475569] dark:text-[#94A3B8]">
+                    2. Thông tin cá nhân (Tùy chọn)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className={formRole === 'STUDENT' ? '' : 'sm:col-span-2'}>
+                      <label className="block text-xs font-semibold mb-1">
+                        Ảnh đại diện URL
+                      </label>
+                      <input
+                        type="url"
+                        value={formAvatarUrl}
+                        onChange={(e) => setFormAvatarUrl(e.target.value)}
+                        placeholder="https://example.com/avatar.jpg"
+                        className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm"
+                      />
+                    </div>
+
+                    {/* Chỉ học viên mới có Mục tiêu nghề nghiệp & Số lượt phỏng vấn AI */}
+                    {formRole === 'STUDENT' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-semibold mb-1">
+                            Mục tiêu nghề nghiệp
+                          </label>
+                          <input
+                            type="text"
+                            value={formCareerGoal}
+                            onChange={(e) => setFormCareerGoal(e.target.value)}
+                            placeholder="VD: Kỹ sư AI Thực chiến, Backend Python..."
+                            className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold mb-1">
+                            Lượt phỏng vấn AI khởi tạo
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={formInterviewCredits}
+                            onChange={(e) =>
+                              setFormInterviewCredits(
+                                Math.max(0, parseInt(e.target.value) || 0)
+                              )
+                            }
+                            className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm"
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1">
+                      Giới thiệu bản thân
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={formBio}
+                      onChange={(e) => setFormBio(e.target.value)}
+                      placeholder="Mô tả tóm tắt kinh nghiệm hoặc định hướng..."
+                      className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-sm resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Thông tin chuyên môn Giảng viên (Chỉ hiển thị khi chọn Giảng viên) */}
+                {formRole === 'INSTRUCTOR' && (
+                  <div className="space-y-3 p-4 rounded-xl bg-blue-500/5 border border-blue-500/30">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                      <Users className="w-4 h-4 text-blue-500" />
+                      <span>3. Thông tin chuyên môn Giảng viên</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-semibold mb-1">
+                          Tiêu đề / Chức danh chuyên môn <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formHeadline}
+                          onChange={(e) => setFormHeadline(e.target.value)}
+                          placeholder="VD: Kỹ sư Trưởng AI &amp; Xử lý ngôn ngữ tự nhiên"
+                          className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-white dark:bg-[#090F0C] text-sm focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1">
+                          Số năm kinh nghiệm
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formYearsOfExp}
+                          onChange={(e) => setFormYearsOfExp(e.target.value)}
+                          placeholder="VD: 8"
+                          className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-white dark:bg-[#090F0C] text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold mb-1">
+                          Đơn vị công tác
+                        </label>
+                        <input
+                          type="text"
+                          value={formOrganization}
+                          onChange={(e) => setFormOrganization(e.target.value)}
+                          placeholder="VD: 3T Academy, Viện Công nghệ AI..."
+                          className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-white dark:bg-[#090F0C] text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1">
+                          Liên kết LinkedIn
+                        </label>
+                        <input
+                          type="text"
+                          value={formLinkedin}
+                          onChange={(e) => setFormLinkedin(e.target.value)}
+                          placeholder="linkedin.com/in/giangvien"
+                          className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-white dark:bg-[#090F0C] text-sm"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1">
+                          Liên kết GitHub
+                        </label>
+                        <input
+                          type="text"
+                          value={formGithub}
+                          onChange={(e) => setFormGithub(e.target.value)}
+                          placeholder="github.com/giangvien"
+                          className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-white dark:bg-[#090F0C] text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1">
+                        Tóm tắt chuyên môn
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={formExpertiseSummary}
+                        onChange={(e) => setFormExpertiseSummary(e.target.value)}
+                        placeholder="Tóm tắt công trình nghiên cứu, kinh nghiệm đào tạo thực tế..."
+                        className="w-full px-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-white dark:bg-[#090F0C] text-sm resize-none"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Ghi chú về quy trình phân công lớp */}
+                <div className="p-3.5 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] text-xs text-[#475569] dark:text-[#94A3B8] leading-relaxed">
+                  <span className="font-bold text-[#0F172A] dark:text-[#ECFDF5]">
+                    Lưu ý:
+                  </span>{' '}
+                  Tài khoản mới sẽ có trạng thái <em>&quot;Chưa phân công lớp&quot;</em>. Bạn có thể phân công giảng dạy hoặc xếp lớp cho học viên sau tại mục <strong>&quot;Quản lý Đợt học&quot;</strong>.
+                </div>
+
+                {formValidationError && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{formValidationError}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowAddStaffForm(false)}
-                    className="px-4 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] text-xs font-semibold cursor-pointer"
+                    onClick={handleResetAddAccountForm}
+                    className="px-4 py-2.5 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] text-xs font-semibold text-[#475569] dark:text-[#94A3B8] hover:bg-[#F7FBF9] dark:hover:bg-[#090F0C] cursor-pointer"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold cursor-pointer"
+                    disabled={isSubmittingAccount}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
                   >
-                    Tạo tài khoản
+                    <Check className="w-4 h-4" />
+                    <span>{isSubmittingAccount ? 'Đang tạo...' : 'Tạo tài khoản'}</span>
                   </button>
                 </div>
               </form>
@@ -2199,7 +2552,7 @@ export const AdminPortalView: React.FC = () => {
                     [
                       { id: 'ALL', label: 'Tất cả vai trò' },
                       { id: 'Học viên', label: 'Học viên' },
-                      { id: 'Giảng viên / Trợ giảng', label: 'Giảng viên / Trợ giảng' },
+                      { id: 'Giảng viên', label: 'Giảng viên' },
                       { id: 'Quản trị viên', label: 'Quản trị viên' },
                     ] as const
                   ).map((tab) => (
@@ -2207,10 +2560,10 @@ export const AdminPortalView: React.FC = () => {
                       key={tab.id}
                       type="button"
                       onClick={() => setRoleFilter(tab.id)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer ${
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
                         roleFilter === tab.id
                           ? 'bg-[#10B981] text-white'
-                          : 'bg-[#F7FBF9] dark:bg-[#090F0C] text-[#475569] dark:text-[#94A3B8] border border-[#E2ECE7] dark:border-[#1E2D24]'
+                          : 'bg-[#F7FBF9] dark:bg-[#090F0C] text-[#475569] dark:text-[#94A3B8] border border-[#E2ECE7] dark:border-[#1E2D24] hover:border-[#10B981]'
                       }`}
                     >
                       {tab.label}
@@ -2225,60 +2578,89 @@ export const AdminPortalView: React.FC = () => {
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
                     placeholder="Tìm theo tên, email, lớp..."
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-xs"
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#E2ECE7] dark:border-[#1E2D24] bg-[#F7FBF9] dark:bg-[#090F0C] text-xs focus:outline-none focus:border-[#10B981]"
                   />
                 </div>
               </div>
 
               <div className="space-y-3">
-                {filteredAccounts.map((acc) => (
-                  <div
-                    key={acc.id}
-                    className="p-4 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] flex flex-wrap items-center justify-between gap-4"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold">{acc.fullName}</span>
-                        <span className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                          ({acc.email})
-                        </span>
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-[#D1FAE5] dark:bg-[#065F46]/40 text-[#065F46] dark:text-[#34D399]">
-                          {acc.roleDetail}
-                        </span>
-                        {acc.locked && (
-                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400">
-                            Đang bị khóa
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                        Lớp phụ trách / theo học: {acc.cohortAssigned}
-                      </p>
-                    </div>
+                {filteredAccounts.map((acc) => {
+                  const isTeacher = acc.roleCategory === 'Giảng viên';
+                  const isAdmin = acc.roleCategory === 'Quản trị viên';
+                  const badgeColor = isAdmin
+                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20'
+                    : isTeacher
+                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+                    : 'bg-[#D1FAE5] dark:bg-[#065F46]/40 text-[#065F46] dark:text-[#34D399] border-emerald-500/20';
 
-                    <button
-                      type="button"
-                      onClick={() => handleToggleLockAccount(acc.id)}
-                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer ${
-                        acc.locked
-                          ? 'bg-[#10B981] text-white'
-                          : 'border border-[#E2ECE7] dark:border-[#1E2D24] bg-white dark:bg-[#111A15] text-[#475569] dark:text-[#94A3B8] hover:border-red-400 hover:text-red-600'
-                      }`}
+                  return (
+                    <div
+                      key={acc.id}
+                      className="p-4 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] flex flex-wrap items-center justify-between gap-4 transition-colors"
                     >
-                      {acc.locked ? (
-                        <>
-                          <Unlock className="w-3.5 h-3.5" />
-                          Mở khóa tài khoản
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="w-3.5 h-3.5" />
-                          Khóa tài khoản
-                        </>
-                      )}
-                    </button>
-                  </div>
-                ))}
+                      <div className="space-y-1 max-w-2xl">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-bold text-[#0F172A] dark:text-[#ECFDF5]">
+                            {acc.fullName}
+                          </span>
+                          <span className="text-xs text-[#475569] dark:text-[#94A3B8] font-mono">
+                            ({acc.email})
+                          </span>
+                          <span
+                            className={`text-[11px] font-bold px-2.5 py-0.5 rounded-md border ${badgeColor}`}
+                          >
+                            {acc.roleDetail || acc.roleCategory}
+                          </span>
+                          {acc.locked && (
+                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
+                              Đang bị khóa
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Chi tiết chức danh chuyên môn hoặc mục tiêu */}
+                        {acc.instructorHeadline && (
+                          <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                            Chức danh: {acc.instructorHeadline}
+                            {acc.instructorOrganization ? ` · ${acc.instructorOrganization}` : ''}
+                            {acc.instructorYearsOfExperience ? ` (${acc.instructorYearsOfExperience} năm KN)` : ''}
+                          </p>
+                        )}
+                        {acc.careerGoal && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                            Mục tiêu nghề nghiệp: {acc.careerGoal}
+                          </p>
+                        )}
+
+                        <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                          Lớp phụ trách / theo học: <span className="font-semibold">{acc.cohortAssigned}</span>
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLockAccount(acc.id)}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                          acc.locked
+                            ? 'bg-[#10B981] hover:bg-[#059669] text-white shadow-xs'
+                            : 'border border-[#E2ECE7] dark:border-[#1E2D24] bg-white dark:bg-[#111A15] text-[#475569] dark:text-[#94A3B8] hover:border-red-400 hover:text-red-600'
+                        }`}
+                      >
+                        {acc.locked ? (
+                          <>
+                            <Unlock className="w-3.5 h-3.5" />
+                            <span>Mở khóa tài khoản</span>
+                          </>
+                        ) : (
+                          <>
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Khóa tài khoản</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

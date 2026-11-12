@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Video,
   Layers,
@@ -26,17 +26,12 @@ import {
   Edit3,
   Lock,
   BarChart3,
+  LogOut,
 } from 'lucide-react';
 import { useAcademy, InstructorSidebarTab } from '../context/AcademyContext';
-import {
-  AVATAR_MINH_KHOA,
-  INITIAL_ENROLLMENTS,
-  INITIAL_CHAT_MESSAGES,
-  INITIAL_NOTIFICATIONS,
-} from '../data/mockDatabase';
-import { Enrollment, Notification } from '../types/domain';
+import { Enrollment, Notification, ChatMessage } from '../types/domain';
 import { formatScheduleSlots } from '../utils/academyLogic';
-import { AvatarWithFallback } from '../components/BotanicalStickers';
+import { AVATAR_MINH_KHOA, AvatarWithFallback } from '../components/BotanicalStickers';
 import {
   StackedBarChart,
   ScoreHistogramChart,
@@ -44,12 +39,12 @@ import {
   DonutGaugeChart,
 } from '../components/charts';
 import {
-  SESSION_4_MCQ_QUESTIONS,
-  FINAL_EXAM_25_MCQ_QUESTIONS,
+  teachApi,
   McqQuestionItem,
   AssessmentPublishStatus,
-} from '../data/phase2QuizBank';
-import { teachApi } from '../services/teach.api';
+} from '../services/teach.api';
+import { authApi } from '../services/auth.api';
+import { useAsyncData } from '../hooks/useAsyncData';
 
 interface BehindScheduleStudent {
   id: string;
@@ -198,6 +193,7 @@ export const InstructorPortalView: React.FC = () => {
     replyToDiscussionAsStaff,
     materials,
     addCohortMaterial,
+    setRole,
     navigate,
   } = useAcademy();
 
@@ -242,10 +238,19 @@ export const InstructorPortalView: React.FC = () => {
     },
   ];
 
+  const { data: scheduleData } = useAsyncData(
+    () => teachApi.getInstructorSchedule(),
+    []
+  );
+  const { data: instructorCohortsData } = useAsyncData(
+    () => teachApi.getInstructorCohorts(),
+    []
+  );
+
   const [analyticsCohortId, setAnalyticsCohortId] = useState<string>('cohort-ai-k01');
-  const [enrollmentsState] = useState<Enrollment[]>(INITIAL_ENROLLMENTS);
-  const [notificationsState, setNotificationsState] =
-    useState<Notification[]>(INITIAL_NOTIFICATIONS);
+  const [enrollmentsState, setEnrollmentsState] = useState<Enrollment[]>([]);
+  const [notificationsState, setNotificationsState] = useState<Notification[]>([]);
+  const [chatMessagesState, setChatMessagesState] = useState<ChatMessage[]>([]);
   const [remindedEnrollmentIds, setRemindedEnrollmentIds] = useState<Record<string, boolean>>({});
   const [analyticsReminderToast, setAnalyticsReminderToast] = useState<string | null>(null);
 
@@ -260,8 +265,12 @@ export const InstructorPortalView: React.FC = () => {
     'LEVEL_1_COHORTS' | 'LEVEL_2_COHORT_DETAIL' | 'LEVEL_3_SESSION_DETAIL'
   >('LEVEL_1_COHORTS');
   const [selectedCohortId, setSelectedCohortId] = useState<string>('cohort-ai-k01');
+  const effectiveCohorts =
+    instructorCohortsData && instructorCohortsData.length > 0
+      ? instructorCohortsData
+      : cohorts;
   const selectedCohort =
-    cohorts.find((c) => c.id === selectedCohortId) ?? cohorts[0];
+    effectiveCohorts.find((c) => c.id === selectedCohortId) ?? effectiveCohorts[0];
 
   const cohortSessions = sessions
     .filter((s) => s.cohortId === selectedCohortId)
@@ -276,9 +285,7 @@ export const InstructorPortalView: React.FC = () => {
   // Cấp 2: Đề thi tốt nghiệp cuối khóa của lớp (25 câu A, B, C, D)
   const [showAllFinalQuestions, setShowAllFinalQuestions] = useState<boolean>(false);
   const [showAddFinalQForm, setShowAddFinalQForm] = useState<boolean>(false);
-  const [finalMcqList, setFinalMcqList] = useState<McqQuestionItem[]>(
-    FINAL_EXAM_25_MCQ_QUESTIONS
-  );
+  const [finalMcqList, setFinalMcqList] = useState<McqQuestionItem[]>([]);
   const [finalExamPublishStatus, setFinalExamPublishStatus] =
     useState<AssessmentPublishStatus>('PUBLISHED');
   const [finalExamSavedNotice, setFinalExamSavedNotice] = useState<string | null>(null);
@@ -297,10 +304,7 @@ export const InstructorPortalView: React.FC = () => {
   // Bài kiểm tra 10 câu A, B, C, D gắn trực tiếp với từng buổi học + Trạng thái DRAFT / PUBLISHED
   const [sessionQuizzesById, setSessionQuizzesById] = useState<
     Record<string, McqQuestionItem[]>
-  >({
-    'sess-k01-04': SESSION_4_MCQ_QUESTIONS,
-    'sess-k01-05': SESSION_4_MCQ_QUESTIONS,
-  });
+  >({});
   const [sessionQuizStatusById, setSessionQuizStatusById] = useState<
     Record<string, AssessmentPublishStatus>
   >({
@@ -308,7 +312,7 @@ export const InstructorPortalView: React.FC = () => {
     'sess-k01-05': 'DRAFT',
   });
   const currentSessionQuestions =
-    sessionQuizzesById[activeSession.id] ?? SESSION_4_MCQ_QUESTIONS;
+    sessionQuizzesById[activeSession.id] ?? [];
   const currentSessionQuizStatus: AssessmentPublishStatus =
     sessionQuizStatusById[activeSession.id] ?? 'PUBLISHED';
 
@@ -332,17 +336,96 @@ export const InstructorPortalView: React.FC = () => {
   const [examReviews, setExamReviews] =
     useState<ProctoredExamReviewItem[]>(INITIAL_EXAM_REVIEWS);
 
-  const liveSession = sessions.find((s) => s.status === 'LIVE') ?? sessions[4];
+  useEffect(() => {
+    if (scheduleData) {
+      if (scheduleData.enrollments) {
+        setEnrollmentsState(scheduleData.enrollments);
+      }
+      if (scheduleData.notifications) {
+        setNotificationsState(scheduleData.notifications);
+      }
+      if (scheduleData.chatMessages) {
+        setChatMessagesState(scheduleData.chatMessages);
+      }
+      if (scheduleData.examReviews && scheduleData.examReviews.length > 0) {
+        setExamReviews(
+          scheduleData.examReviews.map((r) => ({
+            ...r,
+            studentEmail: r.studentEmail ?? 'hocvien@3t.edu.vn',
+            examTitle:
+              r.examTitle ?? 'Thi cuối khóa Kỹ Sư AI Thực Chiến (25 câu trắc nghiệm)',
+            submittedAt: r.submittedAt ?? 'Hôm nay · 18:45',
+          }))
+        );
+      }
+    }
+  }, [scheduleData]);
+
+  useEffect(() => {
+    let cancelled = false;
+    teachApi
+      .getInstructorCohortDetail(selectedCohortId)
+      .then((detail) => {
+        if (cancelled) return;
+        if (detail.finalExamQuestions) {
+          setFinalMcqList(detail.finalExamQuestions);
+        }
+        if (detail.finalExamPublishStatus) {
+          setFinalExamPublishStatus(detail.finalExamPublishStatus);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCohortId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    teachApi
+      .getInstructorSessionDetail(selectedCohortId, selectedSessionId)
+      .then((detail) => {
+        if (cancelled) return;
+        if (detail.questions) {
+          setSessionQuizzesById((prev) => ({
+            ...prev,
+            [selectedSessionId]: prev[selectedSessionId] ?? detail.questions,
+          }));
+        }
+        if (detail.publishStatus) {
+          setSessionQuizStatusById((prev) => ({
+            ...prev,
+            [selectedSessionId]: prev[selectedSessionId] ?? detail.publishStatus,
+          }));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCohortId, selectedSessionId]);
+
+  const liveSession =
+    scheduleData?.liveSession ??
+    sessions.find((s) => s.status === 'LIVE') ??
+    sessions[4];
 
   // Mở Cấp 2 (Chi tiết 1 lớp)
-  const handleOpenCohortLevel2 = (cohortId: string) => {
+  const handleOpenCohortLevel2 = async (cohortId: string) => {
     setSelectedCohortId(cohortId);
     setCohortFlowLevel('LEVEL_2_COHORT_DETAIL');
     setFinalExamSavedNotice(null);
+    const detail = await teachApi.getInstructorCohortDetail(cohortId);
+    if (detail.finalExamQuestions) {
+      setFinalMcqList(detail.finalExamQuestions);
+    }
+    if (detail.finalExamPublishStatus) {
+      setFinalExamPublishStatus(detail.finalExamPublishStatus);
+    }
   };
 
   // Mở Cấp 3 (Chi tiết 1 buổi học cụ thể trong lớp)
-  const handleOpenSessionLevel3 = (sessId: string) => {
+  const handleOpenSessionLevel3 = async (sessId: string) => {
     setSelectedSessionId(sessId);
     const found = displayCohortSessions.find((s) => s.id === sessId);
     if (found) {
@@ -355,6 +438,13 @@ export const InstructorPortalView: React.FC = () => {
     setEditingQuestionIdx(null);
     setShowAddSessionQForm(false);
     setCohortFlowLevel('LEVEL_3_SESSION_DETAIL');
+    const detail = await teachApi.getInstructorSessionDetail(selectedCohortId, sessId);
+    if (detail.questions) {
+      setSessionQuizzesById((prev) => ({
+        ...prev,
+        [sessId]: prev[sessId] ?? detail.questions,
+      }));
+    }
   };
 
   const handleCreateGuestLink = async () => {
@@ -378,16 +468,25 @@ export const InstructorPortalView: React.FC = () => {
   };
 
   // Lưu tóm tắt kiến thức trọng tâm & tải tài liệu cho buổi học (Cấp 3 - Khối 2)
-  const handleSaveSessionSummaryAndMaterials = (e: React.FormEvent) => {
+  const handleSaveSessionSummaryAndMaterials = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSessionDetails(activeSession.id, {
-      aiSummaryMd: editSessionSummary.trim() || activeSession.aiSummaryMd,
+    const summaryMd = editSessionSummary.trim() || activeSession.aiSummaryMd;
+    const matTitle = newMatTitle.trim();
+    await teachApi.updateSessionMaterials(activeSession.id, {
+      aiSummaryMd: summaryMd,
+      cohortId: selectedCohortId,
+      sessionOrder: activeSession.sessionOrder,
+      materialTitle: matTitle || undefined,
+      fileType: newMatType,
     });
-    if (newMatTitle.trim()) {
+    updateSessionDetails(activeSession.id, {
+      aiSummaryMd: summaryMd,
+    });
+    if (matTitle) {
       addCohortMaterial(
         selectedCohortId,
         activeSession.sessionOrder,
-        newMatTitle.trim(),
+        matTitle,
         newMatType
       );
       setNewMatTitle('');
@@ -570,10 +669,11 @@ export const InstructorPortalView: React.FC = () => {
     setTimeout(() => setFinalExamSavedNotice(null), 4500);
   };
 
-  const handleExamDecision = (
+  const handleExamDecision = async (
     reviewId: string,
     decision: 'APPROVED' | 'RETAKE_REQUIRED'
   ) => {
+    await teachApi.reviewExamProctoring(reviewId, decision);
     setExamReviews((prev) =>
       prev.map((item) => (item.id === reviewId ? { ...item, decision } : item))
     );
@@ -649,19 +749,34 @@ export const InstructorPortalView: React.FC = () => {
           </nav>
         </div>
 
-        {/* Instructor Profile Footer */}
-        <div className="pt-4 border-t border-[#E2ECE7] dark:border-[#1E2D24] flex items-center gap-3">
-          <img
-            src={AVATAR_MINH_KHOA}
-            alt="TS. Trần Minh Khoa"
-            className="w-10 h-10 rounded-full object-cover border border-[#10B981] shrink-0"
-          />
-          <div className="min-w-0">
-            <p className="text-xs font-bold truncate">TS. Trần Minh Khoa</p>
-            <p className="text-[11px] text-[#059669] dark:text-[#34D399] font-semibold truncate">
-              Giảng viên chính · Khóa K01, K02
-            </p>
+        {/* Instructor Profile Footer & Logout */}
+        <div className="pt-4 border-t border-[#E2ECE7] dark:border-[#1E2D24] space-y-3">
+          <div className="flex items-center gap-3">
+            <img
+              src={AVATAR_MINH_KHOA}
+              alt="TS. Trần Minh Khoa"
+              className="w-10 h-10 rounded-full object-cover border border-[#10B981] shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold truncate">TS. Trần Minh Khoa</p>
+              <p className="text-[11px] text-[#059669] dark:text-[#34D399] font-semibold truncate">
+                Giảng viên chính
+              </p>
+            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await authApi.logout();
+              setRole('GUEST');
+              navigate('/login');
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] hover:border-[#EF4444] text-xs font-semibold text-[#475569] dark:text-[#94A3B8] hover:text-[#EF4444] transition-colors cursor-pointer"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Đăng xuất tài khoản giảng viên</span>
+          </button>
         </div>
       </aside>
 
@@ -2036,9 +2151,10 @@ export const InstructorPortalView: React.FC = () => {
                       />
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           const txt = replyTexts[thread.id]?.trim();
                           if (!txt) return;
+                          await teachApi.replyAndVerifyDiscussion(thread.id, txt);
                           replyToDiscussionAsStaff(thread.id, txt);
                           setReplyTexts((prev) => ({ ...prev, [thread.id]: '' }));
                         }}
@@ -2228,7 +2344,7 @@ export const InstructorPortalView: React.FC = () => {
               ];
 
           // 3. Gom nhóm trực tiếp từ chat_messages.detectedTopic kết hợp discussion_threads
-          const detectedTopicCounts = INITIAL_CHAT_MESSAGES.reduce<Record<string, number>>(
+          const detectedTopicCounts = chatMessagesState.reduce<Record<string, number>>(
             (acc, msg) => {
               if (msg.detectedTopic) {
                 acc[msg.detectedTopic] = (acc[msg.detectedTopic] || 0) + 1;
@@ -2310,28 +2426,28 @@ export const InstructorPortalView: React.FC = () => {
 
           const reminderEffectivenessSegments = [
             {
-              label: 'Đã quay lại học tập thành công (acted_at != null)',
+              label: 'Đã vào học tiếp',
               value: totalActedCount,
-              countText: `${totalActedCount}/${totalSentCount} lượt nhắc (${actedRatePct}%)`,
+              countText: `${totalActedCount}/${totalSentCount} lượt (${actedRatePct}%)`,
               color: '#10B981',
               description:
-                'Học viên đã bấm vào thông báo nhắc nhở AI, mở lại video ôn tập và hoàn thành bài kiểm tra mở khóa.',
+                'Học viên đã mở thông báo, xem lại bài giảng và hoàn thành bài tập.',
             },
             {
-              label: 'Đã đọc nhưng chưa hoàn thành bài (is_read = true)',
+              label: 'Đã xem thông báo',
               value: readOnlyNotActedCount,
-              countText: `${readOnlyNotActedCount}/${totalSentCount} lượt nhắc`,
+              countText: `${readOnlyNotActedCount}/${totalSentCount} lượt`,
               color: '#0EA5E9',
               description:
-                'Học viên đã xem lộ trình ôn tập AI gợi ý nhưng chưa nộp xong bài trắc nghiệm mở khóa.',
+                'Học viên đã xem thông báo nhưng chưa hoàn thành bài tập mở khóa.',
             },
             {
-              label: 'Chưa đọc thông báo (is_read = false)',
+              label: 'Chưa mở thông báo',
               value: unreadCount,
-              countText: `${unreadCount}/${totalSentCount} lượt nhắc`,
+              countText: `${unreadCount}/${totalSentCount} lượt`,
               color: '#F59E0B',
               description:
-                'Thông báo nhắc nhở vừa gửi hoặc học viên chưa mở ứng dụng, cần theo dõi thêm trước giờ học.',
+                'Thông báo vừa được gửi hoặc học viên chưa mở ứng dụng.',
             },
           ];
 
@@ -2347,7 +2463,7 @@ export const InstructorPortalView: React.FC = () => {
                 cohortCode: enr.cohortCode,
                 type: 'AI_STUDY_REMINDER',
                 title: res.title,
-                message: `Lộ trình ôn tập 15 phút cá nhân hóa cho ${enr.studentName}: Còn thiếu ${enr.missingQuizzesCount} bài kiểm tra mở khóa.`,
+                message: `Lộ trình ôn tập 15 phút dành cho ${enr.studentName}: Còn thiếu ${enr.missingQuizzesCount} bài kiểm tra ngắn.`,
                 isRead: false,
                 sentAt: res.createdAt,
                 readAt: null,
@@ -2356,18 +2472,15 @@ export const InstructorPortalView: React.FC = () => {
               ...prev,
             ]);
             setAnalyticsReminderToast(
-              `Đã gửi nhắc nhở học tập cá nhân hóa bằng AI cho học viên ${enr.studentName} (risk_level: ${enr.riskLevel}, điểm rủi ro: ${Math.round(
-                enr.dropoutRiskScore * 100
-              )}%).`
+              `Đã gửi lời nhắc ôn tập cho học viên ${enr.studentName}.`
             );
             setTimeout(() => setAnalyticsReminderToast(null), 4500);
           };
 
           return (
             <div className="flex flex-col gap-6 w-full min-w-0">
-              {/* Header của Thống kê lớp học xếp chồng theo chiều dọc (flex-col gap-4 w-full) */}
+              {/* Header của Thống kê lớp học */}
               <div className="bg-white dark:bg-[#111A15] rounded-2xl border border-[#E2ECE7] dark:border-[#1E2D24] p-6 flex flex-col gap-4 w-full">
-                {/* Hàng trên (w-full): Tiêu đề chính và dòng mô tả ngắn gọn trải rộng toàn màn hình */}
                 <div className="w-full space-y-1">
                   <div className="text-xs font-mono font-bold text-[#059669] dark:text-[#34D399]">
                     PHÂN TÍCH CHUYÊN SÂU DÀNH CHO GIẢNG VIÊN
@@ -2376,11 +2489,10 @@ export const InstructorPortalView: React.FC = () => {
                     Thống kê lớp học &amp; Chất lượng tiếp thu bài giảng
                   </h1>
                   <p className="text-xs sm:text-sm text-[#475569] dark:text-[#94A3B8]">
-                    Theo dõi tiến độ hoàn thành từng buổi, nguy cơ bỏ học (`dropout_risk_score`), phổ điểm kiểm tra, chủ đề học viên hỏi AI nhiều nhất (`detected_topic`) và tỷ lệ quay lại học tập sau nhắc nhở (`acted_at`).
+                    Theo dõi tiến độ hoàn thành bài học, mức độ chuyên cần của học viên, phổ điểm kiểm tra và các chủ đề thảo luận nhiều nhất trong lớp.
                   </p>
                 </div>
 
-                {/* Hàng dưới (flex flex-wrap items-center gap-2 w-full): Thanh các nút chọn Lớp học tự động xuống dòng */}
                 <div className="flex flex-wrap items-center gap-2 w-full pt-2 border-t border-[#E2ECE7] dark:border-[#1E2D24]">
                   <span className="text-xs font-semibold text-[#475569] dark:text-[#94A3B8] mr-1">
                     Chọn lớp phụ trách:
@@ -2412,25 +2524,25 @@ export const InstructorPortalView: React.FC = () => {
                 </div>
               )}
 
-              {/* Lưới biểu đồ 2 cột chuẩn (grid grid-cols-1 lg:grid-cols-2 gap-6 w-full) */}
+              {/* Lưới biểu đồ 2 cột */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-                {/* Biểu đồ 1: Tiến độ học tập & Tỷ lệ hoàn thành / Nguy cơ bỏ học theo thời gian */}
+                {/* Biểu đồ 1: Tiến độ học tập & Mức độ chuyên cần */}
                 <div className="bg-white dark:bg-[#111A15] rounded-2xl border border-[#E2ECE7] dark:border-[#1E2D24] p-6 flex flex-col justify-between space-y-5 min-w-0">
                   <div className="space-y-4">
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="text-xs font-mono font-bold text-[#059669] dark:text-[#34D399]">
-                          1. TIẾN ĐỘ HỌC TẬP &amp; NGUY CƠ BỎ HỌC ({currentAnalyticsCohort.code})
+                          1. TIẾN ĐỘ HỌC TẬP &amp; MỨC ĐỘ CHUYÊN CẦN ({currentAnalyticsCohort.code})
                         </span>
-                        <span className="text-[11px] font-mono text-[#475569] dark:text-[#94A3B8]">
-                          LOW: {lowRiskCount} · MEDIUM: {mediumRiskCount} · HIGH: {highRiskCount}
+                        <span className="text-[11px] font-semibold text-[#475569] dark:text-[#94A3B8]">
+                          Đúng hạn: {lowRiskCount} · Cần lưu ý: {mediumRiskCount} · Cần hỗ trợ: {highRiskCount}
                         </span>
                       </div>
                       <h2 className="text-base sm:text-lg font-bold">
-                        Tiến độ hoàn thành &amp; Phân nhóm rủi ro (`enrollments.risk_level`)
+                        Tiến độ học tập &amp; Mức độ cần hỗ trợ
                       </h2>
                       <p className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                        Tổng hợp từ <code className="font-mono">session_progress</code> và cột <code className="font-mono">enrollments.risk_level</code> (<code className="font-mono">LOW</code>, <code className="font-mono">MEDIUM</code>, <code className="font-mono">HIGH</code>).
+                        Thống kê tỷ lệ tham gia các buổi học và phân loại mức độ chuyên cần của học viên trong lớp.
                       </p>
                     </div>
 
@@ -2440,35 +2552,34 @@ export const InstructorPortalView: React.FC = () => {
                       segments={[
                         {
                           key: 'lowRisk',
-                          label: 'An toàn / Đúng hạn (LOW)',
+                          label: 'Đúng hạn',
                           color: '#10B981',
                         },
                         {
                           key: 'mediumRisk',
-                          label: 'Cần chú ý (MEDIUM)',
+                          label: 'Cần lưu ý',
                           color: '#F59E0B',
                         },
                         {
                           key: 'highRisk',
-                          label: 'Nguy cơ bỏ học cao (HIGH)',
+                          label: 'Cần hỗ trợ sớm',
                           color: '#EF4444',
                         },
                       ]}
                     />
                   </div>
 
-                  {/* Danh sách học viên đang ở mức risk_level === 'HIGH' + Nút Gửi nhắc nhở học tập cá nhân hóa bằng AI */}
+                  {/* Danh sách học viên cần hỗ trợ */}
                   <div className="pt-4 border-t border-[#E2ECE7] dark:border-[#1E2D24] space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-bold text-[#EF4444] flex items-center gap-1.5">
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                         <span>
-                          Học viên có nguy cơ bỏ học cao (`risk_level = HIGH`):{' '}
-                          {highRiskEnrollments.length} học viên
+                          Danh sách học viên cần hỗ trợ thêm: {highRiskEnrollments.length} học viên
                         </span>
                       </span>
-                      <span className="text-[11px] font-mono text-[#475569] dark:text-[#94A3B8]">
-                        dropout_risk_score &ge; 0.75
+                      <span className="text-[11px] font-medium text-[#475569] dark:text-[#94A3B8]">
+                        Ưu tiên đồng hành
                       </span>
                     </div>
 
@@ -2483,10 +2594,10 @@ export const InstructorPortalView: React.FC = () => {
                             <div className="space-y-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-xs font-bold">{enr.studentName}</span>
-                                <span className="px-2 py-0.5 rounded bg-[#EF4444]/15 text-[#EF4444] font-mono text-[10px] font-bold">
-                                  HIGH · Rủi ro {Math.round(enr.dropoutRiskScore * 100)}%
+                                <span className="px-2 py-0.5 rounded bg-[#EF4444]/15 text-[#EF4444] text-[11px] font-bold">
+                                  Cần hỗ trợ ({Math.round(enr.dropoutRiskScore * 100)}%)
                                 </span>
-                                <span className="text-[11px] font-mono text-[#475569] dark:text-[#94A3B8]">
+                                <span className="text-[11px] text-[#475569] dark:text-[#94A3B8]">
                                   Tiến độ: {enr.completedSessionsCount}/{enr.totalSessionsCount} buổi
                                 </span>
                               </div>
@@ -2508,12 +2619,12 @@ export const InstructorPortalView: React.FC = () => {
                               {isReminded ? (
                                 <>
                                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                                  <span>Đã gửi nhắc nhở AI</span>
+                                  <span>Đã gửi lời nhắc</span>
                                 </>
                               ) : (
                                 <>
                                   <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                                  <span>Gửi nhắc nhở học tập cá nhân hóa bằng AI</span>
+                                  <span>Gửi lời nhắc ôn tập</span>
                                 </>
                               )}
                             </button>
@@ -2532,15 +2643,15 @@ export const InstructorPortalView: React.FC = () => {
                         <span className="text-xs font-mono font-bold text-[#059669] dark:text-[#34D399]">
                           2. PHỔ ĐIỂM SỐ &amp; HIỆU QUẢ KHÓA HỌC
                         </span>
-                        <span className="text-[11px] font-mono text-[#059669] dark:text-[#34D399] font-bold">
-                          86% đạt &gt;= 70 điểm
+                        <span className="text-[11px] font-semibold text-[#059669] dark:text-[#34D399]">
+                          86% đạt từ 70 điểm trở lên
                         </span>
                       </div>
                       <h2 className="text-base sm:text-lg font-bold">
-                        Phân bổ điểm kiểm tra (`assessment_attempts.score_pct`)
+                        Phổ điểm các bài kiểm tra
                       </h2>
                       <p className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                        Tính toán từ kết quả các bài kiểm tra trắc nghiệm mở khóa và tỷ lệ vượt chuẩn 70% qua các buổi học.
+                        Thống kê kết quả các bài kiểm tra trắc nghiệm và tỷ lệ đạt chuẩn qua từng buổi học.
                       </p>
                     </div>
 
@@ -2575,52 +2686,52 @@ export const InstructorPortalView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Biểu đồ 3: Số lượng câu hỏi gửi tới AI & Các chủ đề được hỏi nhiều nhất */}
+                {/* Biểu đồ 3: Chủ đề kỹ thuật học viên hỏi nhiều nhất */}
                 <div className="bg-white dark:bg-[#111A15] rounded-2xl border border-[#E2ECE7] dark:border-[#1E2D24] p-6 flex flex-col justify-between space-y-4 min-w-0">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-mono font-bold text-[#059669] dark:text-[#34D399]">
-                        3. SỐ LƯỢNG CÂU HỎI GỬI TỚI AI &amp; CHỦ ĐỀ HỎI NHIỀU NHẤT
+                        3. CÁC CHỦ ĐỀ HỌC VIÊN HỎI NHIỀU NHẤT
                       </span>
-                      <span className="text-[11px] font-mono text-[#059669] dark:text-[#34D399] font-bold">
-                        chat_messages.detected_topic
+                      <span className="text-[11px] font-semibold text-[#059669] dark:text-[#34D399]">
+                        Chủ đề trọng tâm
                       </span>
                     </div>
                     <h2 className="text-base sm:text-lg font-bold">
-                      Chủ đề kỹ thuật học viên hỏi Trợ giảng AI &amp; Thảo luận nhiều nhất
+                      Các chủ đề kỹ thuật được thảo luận nhiều nhất
                     </h2>
                     <p className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                      Gom nhóm trực tiếp từ cột <code className="font-mono">chat_messages.detected_topic</code> kết hợp với câu hỏi trong <code className="font-mono">discussion_threads</code>. Di chuột vào từng thanh để xem gợi ý điều chỉnh bài giảng.
+                      Tổng hợp những phần kiến thức học viên đặt nhiều câu hỏi nhất trong buổi học để giảng viên lưu ý giải đáp thêm.
                     </p>
                   </div>
 
                   <HorizontalTopicBarChart items={topicBottlenecks} />
                 </div>
 
-                {/* Biểu đồ 4: Hiệu quả các Cảnh báo / Nhắc nhở AI (notifications) */}
+                {/* Biểu đồ 4: Hiệu quả các Lời nhắc học tập */}
                 <div className="bg-white dark:bg-[#111A15] rounded-2xl border border-[#E2ECE7] dark:border-[#1E2D24] p-6 flex flex-col justify-between space-y-5 min-w-0">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs font-mono font-bold text-[#059669] dark:text-[#34D399]">
-                        4. HIỆU QUẢ CÁC CẢNH BÁO / NHẮC NHỞ AI (`notifications`)
+                        4. HIỆU QUẢ LỜI NHẮC ÔN TẬP
                       </span>
-                      <span className="text-[11px] font-mono text-[#10B981] font-bold">
+                      <span className="text-[11px] font-semibold text-[#10B981]">
                         Tỷ lệ quay lại học: {actedRatePct}%
                       </span>
                     </div>
                     <h2 className="text-base sm:text-lg font-bold">
-                      Phễu chuyển đổi từ Nhắc nhở AI ➔ Đã đọc (`is_read`) ➔ Quay lại học (`acted_at`)
+                      Hiệu quả lời nhắc: Đã gửi ➔ Đã xem ➔ Tiếp tục học
                     </h2>
                     <p className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                      Tính toán trực tiếp từ bảng <code className="font-mono">notifications</code>: So sánh tổng số nhắc nhở AI đã gửi, số học viên đã đọc và số học viên đã bấm vào thông báo để quay lại hoàn thành bài học.
+                      Thống kê mức độ tương tác của học viên khi nhận thông báo nhắc lịch học và ôn tập kiến thức.
                     </p>
                   </div>
 
-                  {/* Phễu 3 bước trực quan: Đã gửi -> Đã đọc (is_read = true) -> Đã hành động (acted_at != null) */}
+                  {/* Phễu 3 bước trực quan */}
                   <div className="grid grid-cols-3 gap-2.5">
                     <div className="p-3 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24]">
-                      <div className="text-[10px] font-mono uppercase text-[#475569] dark:text-[#94A3B8]">
-                        1. Đã gửi nhắc AI
+                      <div className="text-[10px] font-semibold uppercase text-[#475569] dark:text-[#94A3B8]">
+                        1. Đã gửi lời nhắc
                       </div>
                       <div className="text-lg font-bold font-mono text-[#0F172A] dark:text-white mt-0.5">
                         {totalSentCount} lượt
@@ -2631,8 +2742,8 @@ export const InstructorPortalView: React.FC = () => {
                     </div>
 
                     <div className="p-3 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24]">
-                      <div className="text-[10px] font-mono uppercase text-[#475569] dark:text-[#94A3B8]">
-                        2. Đã đọc (is_read)
+                      <div className="text-[10px] font-semibold uppercase text-[#475569] dark:text-[#94A3B8]">
+                        2. Đã xem thông báo
                       </div>
                       <div className="text-lg font-bold font-mono text-sky-600 dark:text-sky-400 mt-0.5">
                         {totalReadCount} HV
@@ -2643,8 +2754,8 @@ export const InstructorPortalView: React.FC = () => {
                     </div>
 
                     <div className="p-3 rounded-xl bg-[#D1FAE5]/40 dark:bg-[#065F46]/25 border border-[#10B981]/30">
-                      <div className="text-[10px] font-mono uppercase text-[#065F46] dark:text-[#34D399]">
-                        3. Quay lại học (acted_at)
+                      <div className="text-[10px] font-semibold uppercase text-[#065F46] dark:text-[#34D399]">
+                        3. Đã vào học tiếp
                       </div>
                       <div className="text-lg font-bold font-mono text-[#10B981] mt-0.5">
                         {totalActedCount} HV
@@ -2659,7 +2770,7 @@ export const InstructorPortalView: React.FC = () => {
                     segments={reminderEffectivenessSegments}
                     centerLabel="Quay lại học"
                     centerValue={`${actedRatePct}%`}
-                    centerSubtext={`${totalActedCount}/${totalSentCount} lượt nhắc`}
+                    centerSubtext={`${totalActedCount}/${totalSentCount} lượt`}
                   />
                 </div>
               </div>

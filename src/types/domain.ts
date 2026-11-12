@@ -11,16 +11,25 @@ export type ActivityTag =
 
 export type SkillRelationType = 'PREREQUISITE' | 'LEARNING_OUTCOME';
 
+export type ThemeMode = 'LIGHT' | 'DARK' | 'light' | 'dark';
+
 export interface CourseSkill {
+  id?: string;
   type: SkillRelationType;
   code: string;
   name: string;
 }
 
+export type SkillTag = CourseSkill;
+
 export interface SyllabusTemplateItem {
   order: number;
+  moduleTitle?: string;
+  duration?: string;
   title: string;
   summary: string;
+  topics?: string[];
+  deliverable?: string;
   activityTags: ActivityTag[];
 }
 
@@ -32,22 +41,31 @@ export interface Course {
   descriptionMd: string;
   category: CourseCategory;
   difficultyLevel: 1 | 2 | 3 | 4 | 5;
+  level?: string;
+  durationWeeks?: number;
+  totalHours?: number;
+  highlights?: string[];
+  targetAudience?: string[];
   skills: CourseSkill[];
   syllabusTemplate: SyllabusTemplateItem[];
   ratingAvg: number;
+  rating?: number;
   reviewCount: number;
+  reviewsCount?: number;
 }
 
-export type CohortStatus = 'OPENING' | 'ONGOING' | 'COMPLETED';
+export type CohortStatus = 'OPENING' | 'ONGOING' | 'COMPLETED' | 'CLOSED';
 
 // Chỉ có vai trò INSTRUCTOR cho giảng viên phụ trách lớp (Đã bỏ hoàn toàn vai trò TA)
 export type StaffRole = 'INSTRUCTOR';
 
 export interface CohortStaffMember {
   id: string;
-  role: StaffRole;
+  role: StaffRole | 'TA';
   fullName: string;
   headline: string;
+  title?: string;
+  bio?: string;
   avatarUrl: string;
   organization: string;
 }
@@ -67,6 +85,7 @@ export interface Cohort {
   curriculumVersion: string;
   tuitionVnd: number;
   enrolledCount: number;
+  maxSeats?: number;
   enrollmentOpenAt: string;
   startDate: string;
   endDate: string;
@@ -110,6 +129,7 @@ export interface ClassSession {
   durationSeconds: number;
   isCompleted: boolean;
   lastPositionSec: number;
+  maxWatchedSec?: number;
   aiSummaryMd: string;
   attachmentsCount: number;
   quizStatus: QuizStatus;
@@ -135,6 +155,8 @@ export interface UpcomingTaskItem {
   statusLabel: string;
 }
 
+export type UpcomingTask = UpcomingTaskItem;
+
 export interface DiscussionReply {
   id: string;
   authorName: string;
@@ -142,16 +164,20 @@ export interface DiscussionReply {
   createdAt: string;
   content: string;
   isVerifiedByStaff?: boolean;
+  isOfficialVerify?: boolean;
   aiCitationSec?: string;
 }
 
 export interface DiscussionThread {
   id: string;
   cohortId: string;
+  sessionId?: string;
   sessionOrder: number;
   sessionTitle: string;
   timestampLabel: string;
+  timestampSec?: number;
   authorName: string;
+  authorRole?: string;
   createdAt: string;
   questionTitle: string;
   questionBody: string;
@@ -166,8 +192,10 @@ export interface CohortMaterial {
   cohortId: string;
   sessionOrder: number;
   title: string;
-  fileType: 'PDF' | 'SLIDE' | 'REPO' | 'NOTEBOOK';
+  fileType: 'PDF' | 'SLIDE' | 'REPO' | 'NOTEBOOK' | 'CODE' | 'READING';
+  type?: 'PDF' | 'SLIDE' | 'REPO' | 'NOTEBOOK' | 'CODE' | 'READING';
   fileSize: string;
+  sizeLabel?: string;
   updatedAt: string;
   downloadUrl: string;
 }
@@ -189,6 +217,11 @@ export interface CertificateRecord {
     name: string;
     score: number;
   }[];
+  skillsVerified?: (string | {
+    code: string;
+    name: string;
+    score: number;
+  })[];
 }
 
 export interface OrderReceipt {
@@ -201,13 +234,47 @@ export interface OrderReceipt {
   transactionRef: string;
 }
 
+export type PaymentReceipt = OrderReceipt;
+
 // ============================================================================
 // CÁC BẢNG ĐỒNG BỘ 100% VỚI LƯỢC ĐỒ POSTGRESQL MỚI NHẤT
 // ============================================================================
 
-export interface CvParsedData {
-  fileName: string;
-  updatedAt: string;
+export interface ResumeProjectItem {
+  id: string;
+  name: string;
+  period: string; // VD: "08/2026 – 11/2026"
+  role: string; // VD: "Lead Developer"
+  techStack: string; // VD: "Python, FastAPI, pgvector, React"
+  bullets: string[]; // Các thành tựu đạt được
+  highlights?: string[];
+}
+
+export interface ResumeWorkExperienceItem {
+  id: string;
+  company: string; // Tên công ty
+  position: string; // Vị trí (VD: Backend Developer)
+  period: string; // Thời gian làm việc
+  summary: string; // Mô tả đóng góp & kết quả công việc
+}
+
+export interface ResumeEducationItem {
+  id: string;
+  school: string; // Tên trường ĐH / CĐ
+  degree: string; // Bằng cấp / Chuyên ngành
+  period: string; // Niên khóa (VD: 2021 – 2025)
+  gpaOrHonors?: string; // GPA hoặc Xếp loại
+}
+
+export interface ResumeAwardCertItem {
+  id: string;
+  title: string; // Tên Chứng chỉ hoặc Giải thưởng
+  issuer: string; // Tổ chức cấp (VD: 3T Academy, IIG)
+  dateOrCode: string; // Ngày cấp hoặc Mã định danh chứng chỉ
+  detail?: string;
+}
+
+export interface StudentResumeData {
   fullName: string;
   headline: string;
   email: string;
@@ -215,6 +282,28 @@ export interface CvParsedData {
   githubUrl: string;
   linkedinUrl: string;
   careerObjective: string;
+  skills: string[];
+  projects: ResumeProjectItem[];
+  workExperience: ResumeWorkExperienceItem[];
+  education: ResumeEducationItem[];
+  awardsAndCerts: ResumeAwardCertItem[];
+}
+
+export interface CvParsedData {
+  fileName?: string;
+  updatedAt?: string;
+  fullName?: string;
+  candidateName?: string;
+  headline?: string;
+  targetRole?: string;
+  yearsOfExperience?: number;
+  summaryBio?: string;
+  email?: string;
+  phone?: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  careerObjective?: string;
+  skills?: string[];
   projects: {
     id: string;
     name: string;
@@ -222,7 +311,13 @@ export interface CvParsedData {
     period: string;
     techStack: string;
     highlights: string[];
+    bullets?: string[];
   }[];
+  workExperience?: ResumeWorkExperienceItem[];
+  workExperiences?: ResumeWorkExperienceItem[];
+  education?: ResumeEducationItem[];
+  awardsAndCerts?: ResumeAwardCertItem[];
+  certificationsAndAwards?: ResumeAwardCertItem[];
   externalSkills: {
     name: string;
     note: string;
@@ -239,9 +334,13 @@ export interface UserProfileRecord {
   email: string;
   role: UserRole;
   avatarUrl?: string;
+  bio?: string;
+  careerGoal?: string;
   cvParsedData: CvParsedData;
   interviewCredits: number;
 }
+
+export type UserProfile = UserProfileRecord;
 
 /**
  * Bảng `student_skill_states`: Điểm kỹ năng 0-100 của các khóa học đã đăng ký
@@ -259,6 +358,8 @@ export interface StudentSkillStateRecord {
   sourceLabel: string;
   updatedAt: string;
 }
+
+export type StudentSkillState = StudentSkillStateRecord;
 
 /**
  * Bảng `payment_transactions`: Có `orderId` (nullable), `gateway: 'SEPAY_VIETQR'`,

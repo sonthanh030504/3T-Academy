@@ -17,6 +17,8 @@ import {
   Search,
   Bell,
   Home,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { useAcademy, StudentSidebarTab } from '../context/AcademyContext';
 import { formatTimestamp, formatVnd, formatScheduleSlots } from '../utils/academyLogic';
@@ -27,28 +29,23 @@ import {
 } from '../components/BotanicalStickers';
 import { StudentProfileCvWorkspace } from '../components/StudentProfileCvWorkspace';
 import { StudentVoiceInterviewWorkspace } from '../components/StudentVoiceInterviewWorkspace';
+import { GraduationCertificateDiploma } from '../components/GraduationCertificateDiploma';
 import {
   RadarSkillChart,
   SmoothAreaLineChart,
   DonutGaugeChart,
 } from '../components/charts';
 import { studentLearningApi } from '../services/learning.api';
+import { orderApi } from '../services/order.api';
 import {
   profileAndInterviewApi,
   EnrolledSkillStateItem,
   ExternalCvSkillTagItem,
 } from '../services/profile-interview.api';
-import {
-  INITIAL_STUDENT_SKILL_STATES,
-  INITIAL_USER_PROFILES,
-} from '../data/mockDatabase';
-import { useAsyncQuery } from '../hooks/useAsyncData';
+import { useAsyncData, useAsyncQuery } from '../hooks/useAsyncData';
 
-const DEFAULT_ENROLLED_SKILL_STATES: EnrolledSkillStateItem[] =
-  INITIAL_STUDENT_SKILL_STATES;
-
-const DEFAULT_EXTERNAL_CV_SKILLS: ExternalCvSkillTagItem[] =
-  INITIAL_USER_PROFILES[0].cvParsedData.externalSkills;
+const DEFAULT_ENROLLED_SKILL_STATES: EnrolledSkillStateItem[] = [];
+const DEFAULT_EXTERNAL_CV_SKILLS: ExternalCvSkillTagItem[] = [];
 
 export const StudentDashboardView: React.FC = () => {
   const {
@@ -70,6 +67,7 @@ export const StudentDashboardView: React.FC = () => {
   } = useAcademy();
 
   const [showNotifPopover, setShowNotifPopover] = useState(false);
+  const [expandedCertCode, setExpandedCertCode] = useState<string | null>('CERT-3T-2026-8891');
 
   const fallbackLive = sessions.find((s) => s.status === 'LIVE') ?? sessions[4];
   const fallbackResume = sessions.find((s) => s.sessionOrder === 4) ?? sessions[3];
@@ -82,6 +80,16 @@ export const StudentDashboardView: React.FC = () => {
       upcomingTasks,
       streakDays: 7,
     },
+    []
+  );
+
+  const { data: enrollmentsData } = useAsyncData(
+    () => studentLearningApi.getMyEnrollments(),
+    []
+  );
+
+  const { data: orderHistoryData } = useAsyncData(
+    () => orderApi.getMyOrderHistory(),
     []
   );
 
@@ -99,7 +107,19 @@ export const StudentDashboardView: React.FC = () => {
         latestCvFileName: 'CV_Nguyen_Van_An_2026.pdf',
         latestCvUpdatedAt: '10/11/2026',
         interviewCredits,
-        cvParsedData: INITIAL_USER_PROFILES[0].cvParsedData,
+        cvParsedData: {
+          fileName: 'CV_Nguyen_Van_An_2026.pdf',
+          updatedAt: '10/11/2026',
+          fullName: 'Nguyễn Văn An',
+          headline: 'Kỹ Sư Backend Python & Ứng Dụng AI (AI Engineer)',
+          email: 'an.nguyen.dev@gmail.com',
+          phone: '0908 123 456',
+          githubUrl: 'github.com/nguyenvanan-dev',
+          linkedinUrl: 'linkedin.com/in/nguyenvanan',
+          careerObjective: '',
+          projects: [],
+          externalSkills: [],
+        },
       },
       studentSkillStates: DEFAULT_ENROLLED_SKILL_STATES,
       externalCvSkills: DEFAULT_EXTERNAL_CV_SKILLS,
@@ -133,7 +153,13 @@ export const StudentDashboardView: React.FC = () => {
   const liveSession = dashboardSummary.liveSession ?? fallbackLive;
   const resumeSession = dashboardSummary.resumeSession ?? fallbackResume;
   const primaryCohort = cohorts[0];
-  const myEnrolledCohorts = cohorts.filter((c) => enrolledCohortIds.includes(c.id));
+  const effectiveEnrolledIds =
+    enrollmentsData?.enrolledCohortIds && enrollmentsData.enrolledCohortIds.length > 0
+      ? enrollmentsData.enrolledCohortIds
+      : enrolledCohortIds;
+  const myEnrolledCohorts = cohorts.filter((c) => effectiveEnrolledIds.includes(c.id));
+  const effectiveReceipts =
+    orderHistoryData && orderHistoryData.length > 0 ? orderHistoryData : receipts;
 
   const currentTabInfo =
     sidebarItems.find((item) => item.id === studentSidebarTab) ?? sidebarItems[0];
@@ -1030,46 +1056,124 @@ export const StudentDashboardView: React.FC = () => {
           {/* SIDEBAR SUB-VIEW: CERTIFICATES_ORDERS */}
           {studentSidebarTab === 'CERTIFICATES_ORDERS' && (
             <div className="space-y-6">
-              <div className="rounded-xl bg-white dark:bg-[#111A15] border border-[#E2ECE7] dark:border-[#1E2D24] p-6 space-y-4">
-                <h2 className="text-lg font-bold text-[#0F172A] dark:text-[#ECFDF5]">
-                  Chứng chỉ tốt nghiệp của bạn
-                </h2>
-                {Object.values(certificates).map((c) => (
-                  <div
-                    key={c.certificateCode}
-                    className="p-4 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#10B981] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                  >
-                    <div className="flex items-center gap-3.5">
-                      <CompetencyVerifiedShield className="w-12 h-12 shrink-0" />
-                      <div>
-                        <div className="font-mono text-xs font-bold text-[#059669] dark:text-[#34D399]">
-                          Mã chứng chỉ: {c.certificateCode} · Điểm tổng kết {c.finalScore}/100
+              {/* Danh sách Khóa học đã tốt nghiệp & Bằng khen dạng Accordion */}
+              <div className="rounded-xl bg-white dark:bg-[#111A15] border border-[#E2ECE7] dark:border-[#1E2D24] p-6 space-y-5">
+                <div>
+                  <h2 className="text-lg font-bold text-[#0F172A] dark:text-[#ECFDF5]">
+                    Khóa học đã tốt nghiệp &amp; Bằng chứng nhận
+                  </h2>
+                  <p className="text-xs text-[#475569] dark:text-[#94A3B8] mt-0.5">
+                    Bấm vào từng khóa học để mở rộng hoặc thu gọn xem văn bằng chứng nhận và tải file PDF.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  {Object.values(certificates)
+                    .filter(
+                      (c) =>
+                        c.studentName.trim().toLowerCase() === 'nguyễn văn an' ||
+                        c.studentEmail.trim().toLowerCase().startsWith('an.nguyen')
+                    )
+                    .map((c) => {
+                      const isExpanded = expandedCertCode === c.certificateCode;
+                      return (
+                        <div
+                          key={c.certificateCode}
+                          data-testid={`certificate-item-${c.certificateCode}`}
+                          className={`rounded-xl border transition-all overflow-hidden ${
+                            isExpanded
+                              ? 'bg-[#F7FBF9] dark:bg-[#090F0C] border-[#10B981] shadow-sm'
+                              : 'bg-white dark:bg-[#111A15] border-[#E2ECE7] dark:border-[#1E2D24] hover:border-emerald-300'
+                          }`}
+                        >
+                          {/* Header dạng FAQ Accordion: Bấm vào để mở hoặc thu lại */}
+                          <div
+                            onClick={() =>
+                              setExpandedCertCode(isExpanded ? null : c.certificateCode)
+                            }
+                            role="button"
+                            tabIndex={0}
+                            aria-expanded={isExpanded}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setExpandedCertCode(isExpanded ? null : c.certificateCode);
+                              }
+                            }}
+                            className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer select-none"
+                          >
+                            <div className="flex items-center gap-3.5">
+                              <CompetencyVerifiedShield className="w-12 h-12 shrink-0" />
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-mono text-xs font-bold text-[#059669] dark:text-[#34D399]">
+                                    {c.cohortCode}
+                                  </span>
+                                  <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
+                                    Đã tốt nghiệp
+                                  </span>
+                                  <span className="text-xs font-mono text-slate-500">
+                                    Số hiệu: {c.certificateCode}
+                                  </span>
+                                </div>
+                                <h3 className="text-base font-bold text-[#0F172A] dark:text-[#ECFDF5] mt-1">
+                                  {c.courseTitle}
+                                </h3>
+                                <p className="text-xs text-[#475569] dark:text-[#94A3B8] mt-0.5">
+                                  Điểm: <strong className="text-emerald-700 dark:text-emerald-400 font-mono font-bold">{c.finalScore}/100</strong> · Ngày cấp: {c.issuedAt}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                              <span className="text-xs font-semibold text-[#059669] dark:text-[#34D399]">
+                                {isExpanded ? 'Thu gọn bằng' : 'Xem bằng chứng nhận'}
+                              </span>
+                              <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-300">
+                                {isExpanded ? (
+                                  <ChevronUp className="w-4 h-4" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Nội dung Bằng khen được mở ra khi học viên bấm vào */}
+                          {isExpanded && (
+                            <div className="px-5 pb-5 pt-2 border-t border-[#E2ECE7] dark:border-[#1E2D24] space-y-4">
+                              <div className="flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate('/app/cohorts/cohort-ai-k01');
+                                  }}
+                                  className="text-xs font-semibold text-[#059669] dark:text-[#34D399] hover:underline cursor-pointer"
+                                >
+                                  Mở lại nội dung lớp học →
+                                </button>
+                              </div>
+
+                              <GraduationCertificateDiploma
+                                certificate={c}
+                                showActionHeader={true}
+                              />
+                            </div>
+                          )}
                         </div>
-                        <div className="text-sm font-bold text-[#0F172A] dark:text-[#ECFDF5]">
-                          {c.courseTitle}
-                        </div>
-                        <div className="text-xs text-[#475569] dark:text-[#94A3B8]">
-                          Lớp {c.cohortCode} · Cấp ngày {c.issuedAt}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/verify/${c.certificateCode}`)}
-                      className="px-4 py-2 rounded-lg bg-[#10B981] text-white text-xs font-semibold cursor-pointer whitespace-nowrap"
-                    >
-                      Xem &amp; Chia sẻ Chứng chỉ →
-                    </button>
-                  </div>
-                ))}
+                      );
+                    })}
+                </div>
               </div>
 
+              {/* Lịch sử đóng học phí */}
               <div className="rounded-xl bg-white dark:bg-[#111A15] border border-[#E2ECE7] dark:border-[#1E2D24] p-6 space-y-4">
                 <h2 className="text-lg font-bold text-[#0F172A] dark:text-[#ECFDF5]">
                   Lịch sử đóng học phí
                 </h2>
                 <div className="space-y-3 text-xs">
-                  {receipts.map((r) => (
+                  {effectiveReceipts.map((r) => (
                     <div
                       key={r.orderCode}
                       className="p-4 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -1085,8 +1189,13 @@ export const StudentDashboardView: React.FC = () => {
                           {r.bankName} · {r.paidAt}
                         </div>
                       </div>
-                      <div className="font-mono text-sm font-bold text-[#0F172A] dark:text-[#ECFDF5]">
-                        {formatVnd(r.amountVnd)}
+                      <div className="text-right shrink-0">
+                        <div className="font-mono text-sm font-bold text-[#059669] dark:text-[#34D399]">
+                          {formatVnd(r.amountVnd)}
+                        </div>
+                        <span className="inline-block mt-1 px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-semibold text-[10px]">
+                          ✓ Đã thanh toán thành công
+                        </span>
                       </div>
                     </div>
                   ))}

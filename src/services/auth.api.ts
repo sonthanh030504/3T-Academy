@@ -33,6 +33,12 @@ export const authApi = {
       body: JSON.stringify({ idToken }),
     }),
 
+  googleLogin: (idToken: string) =>
+    httpRequest<AuthSessionResponse>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ idToken }),
+    }),
+
   getMe: () =>
     httpRequest<AuthUserProfile>('/auth/me', {
       method: 'GET',

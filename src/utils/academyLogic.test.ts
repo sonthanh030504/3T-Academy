@@ -10,6 +10,7 @@ import {
   checkCohortScheduleConflict,
   formatScheduleSlots,
   calculatePathRecommendation,
+  isEligibleToEnroll,
 } from './academyLogic';
 import { ClassSession, Cohort } from '../types/domain';
 
@@ -184,4 +185,24 @@ test('calculatePathRecommendation maps career goal and diagnostic answers to coh
   assert.equal(rec.recommendedCohortCode, 'AI-ENG-2026-K01');
   assert.equal(rec.diagnosticScore, 100);
 });
+
+test('isEligibleToEnroll blocks GUEST and non-student roles, allows STUDENT only', () => {
+  // GUEST cannot enroll
+  const guestCheck = isEligibleToEnroll('GUEST');
+  assert.equal(guestCheck.eligible, false);
+  assert.match(guestCheck.reason ?? '', /Yêu cầu đăng nhập tài khoản Học viên/);
+
+  // INSTRUCTOR and ADMIN cannot enroll
+  const instCheck = isEligibleToEnroll('INSTRUCTOR');
+  assert.equal(instCheck.eligible, false);
+
+  const adminCheck = isEligibleToEnroll('ADMIN');
+  assert.equal(adminCheck.eligible, false);
+
+  // Only STUDENT is eligible
+  const studentCheck = isEligibleToEnroll('STUDENT');
+  assert.equal(studentCheck.eligible, true);
+  assert.equal(studentCheck.reason, undefined);
+});
+
 

@@ -51,6 +51,25 @@ export function useAsyncQuery<T>(
   };
 }
 
+/**
+ * Universal `useAsyncData` hook supporting both `(queryFn, deps)` and `(queryFn, initialData, deps)` signatures.
+ */
+export function useAsyncData<T>(
+  queryFn: () => Promise<T>,
+  depsOrInitialData?: React.DependencyList | T,
+  maybeDeps?: React.DependencyList
+): AsyncQueryState<T> {
+  const hasExplicitInitialData = maybeDeps !== undefined;
+  const initialData = (hasExplicitInitialData ? depsOrInitialData : undefined) as T;
+  const deps: React.DependencyList = hasExplicitInitialData
+    ? maybeDeps
+    : Array.isArray(depsOrInitialData)
+    ? depsOrInitialData
+    : [];
+
+  return useAsyncQuery<T>(queryFn, initialData, deps);
+}
+
 export interface AsyncMutationState<TArgs extends unknown[], TResult> {
   mutate: (...args: TArgs) => Promise<TResult>;
   isLoading: boolean;

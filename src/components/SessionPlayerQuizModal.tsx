@@ -13,6 +13,7 @@ import {
 import { useAcademy } from '../context/AcademyContext';
 import { formatTimestamp } from '../utils/academyLogic';
 import { AiTutorCompanionSticker } from './BotanicalStickers';
+import { studentLearningApi } from '../services/learning.api';
 
 export const SessionPlayerQuizModal: React.FC = () => {
   const {
@@ -50,9 +51,9 @@ export const SessionPlayerQuizModal: React.FC = () => {
 
   if (!session) return null;
 
-  const handleJumpTimestamp = (sec: number) => {
+  const handleJumpTimestamp = async (sec: number) => {
     setCurrentSec(sec);
-    updateWatchSec(session.id, sec);
+    await updateWatchSec(session.id, sec);
   };
 
   const handleSelectQuizOption = (qIdx: number, optIdx: number) => {
@@ -63,9 +64,9 @@ export const SessionPlayerQuizModal: React.FC = () => {
     });
   };
 
-  const handleQuizSubmit = (e: React.FormEvent) => {
+  const handleQuizSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = submitSessionQuiz(session.id, selectedAnswers);
+    const res = await submitSessionQuiz(session.id, selectedAnswers);
     if (res) {
       setQuizFeedback({
         passed: res.passed,
@@ -76,14 +77,29 @@ export const SessionPlayerQuizModal: React.FC = () => {
     }
   };
 
-  const handleAskTutor = (e: React.FormEvent) => {
+  const handleAskTutor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tutorQuestion.trim()) return;
-    const stamp = formatTimestamp(currentSec);
-    setTutorReply(
-      `[Chỉ dẫn tại phút ${stamp} · Trang 14 Tài liệu]: Ở đúng đoạn video phút ${stamp} này, thầy ${session.hostInstructorName} đã hướng dẫn chi tiết cách kiểm tra tệp đầu vào và giữ lại dòng tiêu đề bảng. Bạn có thể bấm thẳng vào mốc thời gian bên trái để xem lại thao tác trên màn hình nhé!`
-    );
+    const questionText = tutorQuestion;
     setTutorQuestion('');
+    const res = await studentLearningApi.askSessionAiTutor(
+      session.id,
+      questionText,
+      currentSec
+    );
+    const firstCitation = res.citations?.[0];
+    setTutorReply(
+      `[Chỉ dẫn tại phút ${firstCitation?.label || '14:20'} · ${firstCitation?.slideLabel || 'Slide 12'}]: ${res.answerMd}`
+    );
+  };
+
+  const handleLateCatchup = async () => {
+    const res = await studentLearningApi.askSessionAiTutor(
+      session.id,
+      'Tóm tắt nhanh nội dung buổi học tính đến thời điểm hiện tại cho học viên vào muộn',
+      currentSec
+    );
+    setLateCatchupSummary(res.answerMd);
   };
 
   return (
@@ -165,11 +181,7 @@ export const SessionPlayerQuizModal: React.FC = () => {
           {/* 1-Click Late Arrival Catch-up Button */}
           <button
             type="button"
-            onClick={() =>
-              setLateCatchupSummary(
-                'Tóm tắt nhanh 15 phút vừa qua cho bạn vào muộn: Thầy Trần Minh Khoa vừa giải thích cách kết hợp tìm kiếm từ khóa (bắt đúng mã số, tên riêng) và tìm kiếm theo ý nghĩa câu hỏi (hiểu từ đồng nghĩa), đồng thời viết mẫu câu lệnh SQL trên màn hình ở phút 14:20.'
-              )
-            }
+            onClick={handleLateCatchup}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D1FAE5] dark:bg-emerald-950 text-[#065F46] dark:text-emerald-300 text-xs font-semibold hover:opacity-90 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 text-[#10B981]" />

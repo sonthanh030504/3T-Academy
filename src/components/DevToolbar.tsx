@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
 import { AppRole } from '../types/domain';
+import { authApi } from '../services/auth.api';
 
 const ROLE_OPTIONS: { value: AppRole; label: string; subtitle: string }[] = [
   { value: 'GUEST', label: 'GUEST (Khách)', subtitle: 'Chưa đăng nhập' },
@@ -35,9 +36,9 @@ const QUICK_SCREENS: { path: string; label: string; zone: string }[] = [
     zone: 'Zone 1',
   },
   {
-    path: '/verify/CERT-3T-2026-8891',
-    label: '7. Tra Cứu Chứng Chỉ Tốt Nghiệp (/verify/:code)',
-    zone: 'Zone 1',
+    path: '/app',
+    label: '7. Bằng Tốt Nghiệp & Học Phí (/app)',
+    zone: 'Học Viên',
   },
   { path: '/login', label: '8. Đăng Nhập / Đăng Ký (/login)', zone: 'Zone 2' },
   { path: '/onboarding', label: '9. Thiết Lập Lộ Trình 4 Bước (/onboarding)', zone: 'Zone 2' },
@@ -102,7 +103,12 @@ export const DevToolbar: React.FC = () => {
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => setRole(opt.value)}
+                    onClick={async () => {
+                      if (opt.value === 'GUEST') {
+                        await authApi.logout();
+                      }
+                      setRole(opt.value);
+                    }}
                     className={`text-left px-2.5 py-2 rounded-lg border transition-colors cursor-pointer ${
                       active
                         ? 'bg-[#D1FAE5] dark:bg-emerald-950/90 border-[#10B981] text-[#065F46] dark:text-emerald-300 font-semibold'

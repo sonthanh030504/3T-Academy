@@ -2,6 +2,7 @@ import { handleMockRequest } from '../mocks/mockBackendServer';
 
 export const API_CONFIG = {
   BASE_URL: (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:4000/api/v1',
+  HAS_EXPLICIT_BACKEND: Boolean((import.meta as any).env?.VITE_API_BASE_URL),
   USE_MOCK_FALLBACK: (import.meta as any).env?.VITE_USE_MOCKS !== 'false',
 };
 
@@ -63,6 +64,10 @@ export async function httpRequest<T>(
   const accessToken = getAuthAccessToken();
   if (accessToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  if (API_CONFIG.USE_MOCK_FALLBACK) {
+    return await handleMockRequest<T>(method, normalizedEndpoint, options?.body);
   }
 
   try {

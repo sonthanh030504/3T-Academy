@@ -3,6 +3,7 @@ import { ShieldCheck, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react
 import { useAcademy } from '../context/AcademyContext';
 import { evaluatePasswordStrength } from '../utils/academyLogic';
 import { CompetencyVerifiedShield } from '../components/BotanicalStickers';
+import { authApi } from '../services/auth.api';
 
 export const AuthView: React.FC<{ initialMode: 'LOGIN' | 'REGISTER' }> = ({
   initialMode,
@@ -16,7 +17,7 @@ export const AuthView: React.FC<{ initialMode: 'LOGIN' | 'REGISTER' }> = ({
 
   const strength = evaluatePasswordStrength(password);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !email.includes('@')) {
       setErrorMsg('Vui lòng nhập địa chỉ Email hợp lệ.');
@@ -27,16 +28,29 @@ export const AuthView: React.FC<{ initialMode: 'LOGIN' | 'REGISTER' }> = ({
       return;
     }
     setErrorMsg(null);
-    setRole('STUDENT');
+
     if (mode === 'REGISTER') {
+      const res = await authApi.register(fullName, email, password);
+      setRole(res.user.role || 'STUDENT');
       navigate('/onboarding');
     } else {
-      navigate('/app');
+      const res = await authApi.login(email, password);
+      const userRole = res.user.role || 'STUDENT';
+      setRole(userRole);
+      if (userRole === 'INSTRUCTOR') {
+        navigate('/teach');
+      } else if (userRole === 'ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/app');
+      }
     }
   };
 
-  const handleGoogleOneTap = () => {
-    setRole('STUDENT');
+  const handleGoogleOneTap = async () => {
+    const idToken = 'google-onetap-token-2026';
+    const res = await authApi.googleLogin(idToken);
+    setRole(res.user.role || 'STUDENT');
     navigate('/onboarding');
   };
 

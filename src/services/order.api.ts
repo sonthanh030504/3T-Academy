@@ -5,6 +5,7 @@ export interface SepayOrderCreatedResponse {
   orderCode: string;
   cohortId: string;
   cohortCode: string;
+  courseTitle?: string;
   amountVnd: number;
   status: 'PENDING' | 'PAID';
   bankName: string;
@@ -13,6 +14,8 @@ export interface SepayOrderCreatedResponse {
   transferContent: string;
   qrImageUrl: string;
 }
+
+export type CreateOrderResponse = SepayOrderCreatedResponse;
 
 export const orderApi = {
   createCohortOrder: (cohortId: string, idempotencyKey: string) =>
@@ -23,10 +26,12 @@ export const orderApi = {
     }),
 
   getOrderStatus: (orderCode: string) =>
-    httpRequest<{ orderCode: string; status: 'PENDING' | 'PAID'; paidAt?: string }>(
-      `/orders/${encodeURIComponent(orderCode)}`,
-      { method: 'GET' }
-    ),
+    httpRequest<{
+      orderCode: string;
+      status: 'PENDING' | 'PAID';
+      paidAt?: string;
+      transactionRef?: string;
+    }>(`/orders/${encodeURIComponent(orderCode)}`, { method: 'GET' }),
 
   simulateSepayWebhook: (orderCode: string) =>
     httpRequest<{
@@ -36,6 +41,7 @@ export const orderApi = {
       matchStatus: 'MATCHED';
       transactionRef: string;
       paidAt: string;
+      receipt?: OrderReceipt;
     }>('/webhooks/sepay/simulate', {
       method: 'POST',
       body: JSON.stringify({ orderCode }),

@@ -184,6 +184,12 @@ export const SessionVideoRoomView: React.FC<{
 
   const session = sessionDetail.session ?? fallbackSession;
 
+  const { data: sessionDiscussions, refetch: refetchDiscussions } = useAsyncQuery(
+    () => studentLearningApi.getSessionDiscussions(session.id),
+    discussions,
+    [session.id]
+  );
+
   // Parse initial timestamp from query string if navigated from Assessment Results
   const initialQuerySec = (() => {
     if (typeof window === 'undefined') return 10;
@@ -217,9 +223,10 @@ export const SessionVideoRoomView: React.FC<{
   }, []);
 
   // Seek HTML5 <video> element to exact second and play immediately
-  const handleJumpToSecond = (sec: number, labelInfo?: string) => {
+  const handleJumpToSecond = async (sec: number, labelInfo?: string) => {
     setCurrentSec(sec);
     updateWatchSec(session.id, sec);
+    void studentLearningApi.updateVideoProgress(session.id, sec);
     if (videoRef.current) {
       try {
         videoRef.current.currentTime = sec;
@@ -300,6 +307,8 @@ export const SessionVideoRoomView: React.FC<{
       title,
       'Em đang xem lại video ở mốc thời gian này và mong thầy cùng trợ giảng giải đáp thêm giúp em ạ.'
     );
+    void refetchDiscussions();
+    void sessionDiscussions;
   };
 
   const activeChapter =

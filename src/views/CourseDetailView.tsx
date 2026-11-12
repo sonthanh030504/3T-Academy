@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   ArrowLeft,
   ShieldCheck,
+  Lock,
+  LogIn,
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
 import { ActivityTag } from '../types/domain';
@@ -20,6 +22,8 @@ import {
   getDayOfWeekLabel,
 } from '../utils/academyLogic';
 import { AvatarWithFallback } from '../components/BotanicalStickers';
+import { useAsyncData } from '../hooks/useAsyncData';
+import { catalogApi } from '../services/catalog.api';
 
 const ACTIVITY_LABELS: Record<ActivityTag, string> = {
   THEORY: 'Lý thuyết Trọng tâm',
@@ -29,13 +33,28 @@ const ACTIVITY_LABELS: Record<ActivityTag, string> = {
 };
 
 export const CourseDetailView: React.FC<{ slug: string }> = ({ slug }) => {
-  const { courses, cohorts, enrolledCohortIds, navigate } = useAcademy();
+  const { courses, cohorts, enrolledCohortIds, navigate, role } = useAcademy();
 
   const cleanSlug = slug.split('?')[0];
-  const course =
-    courses.find((c) => c.slug === cleanSlug) ?? courses[0];
+  const { data: detailData } = useAsyncData(
+    () => catalogApi.getCourseBySlug(cleanSlug),
+    [cleanSlug]
+  );
 
-  const courseCohorts = cohorts.filter((c) => c.courseId === course.id);
+  const fallbackCourse =
+    courses.find((c) => c.slug === cleanSlug) ?? courses[0];
+  const course = detailData?.course
+    ? {
+        ...detailData.course,
+        syllabusTemplate:
+          detailData.syllabusTemplate?.modules ?? detailData.course.syllabusTemplate,
+      }
+    : fallbackCourse;
+
+  const courseCohorts =
+    detailData?.cohorts && detailData.cohorts.length > 0
+      ? detailData.cohorts
+      : cohorts.filter((c) => c.courseId === course.id);
   const [selectedCohortId, setSelectedCohortId] = useState<string>(
     courseCohorts[0]?.id ?? cohorts[0].id
   );
@@ -426,14 +445,46 @@ export const CourseDetailView: React.FC<{ slug: string }> = ({ slug }) => {
               </span>
             </div>
 
-            {/* 1-Click Direct Enrollment Button (NO shopping cart) */}
-            <button
-              type="button"
-              onClick={() => navigate(`/checkout/${selectedCohort.code}`)}
-              className="w-full py-3 px-4 rounded-lg bg-[#10B981] hover:bg-[#059669] text-white text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap"
-            >
-              Đăng ký Đợt học này ({selectedCohort.code})
-            </button>
+            {/* 1-Click Direct Enrollment Button - Requires STUDENT login */}
+            {role === 'GUEST' ? (
+              <div className="space-y-3">
+                <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 space-y-1.5 text-xs text-amber-900 dark:text-amber-200">
+                  <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
+                    <Lock className="w-4 h-4 text-[#F59E0B] shrink-0" />
+                    <span>Yêu cầu đăng nhập để ghi danh</span>
+                  </div>
+                  <p className="text-[11px] text-[#475569] dark:text-[#94A3B8] leading-relaxed">
+                    Bạn hiện đang ở trạng thái Khách. Vui lòng đăng nhập hoặc tạo tài khoản học viên để bảo lưu chỗ và nhận thông tin thanh toán học phí.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/login')}
+                  className="w-full py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-sm font-semibold transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Đăng nhập để ghi danh ({selectedCohort.code})</span>
+                </button>
+              </div>
+            ) : role !== 'STUDENT' ? (
+              <div className="rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] p-3.5 text-xs text-[#475569] dark:text-[#94A3B8] text-center space-y-1">
+                <div className="font-semibold text-[#0F172A] dark:text-[#ECFDF5]">
+                  Tài khoản {role === 'INSTRUCTOR' ? 'Giảng viên' : 'Quản trị viên'}
+                </div>
+                <p className="text-[11px]">
+                  Tính năng ghi danh khóa học chỉ áp dụng cho tài khoản Học viên.
+                </p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigate(`/checkout/${selectedCohort.code}`)}
+                className="w-full py-3 px-4 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-sm font-semibold transition-colors cursor-pointer whitespace-nowrap shadow-xs"
+              >
+                Đăng ký Đợt học này ({selectedCohort.code})
+              </button>
+            )}
 
             {isAlreadyEnrolled && (
               <button

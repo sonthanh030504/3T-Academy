@@ -10,24 +10,20 @@ import {
   CohortMaterial,
   CertificateRecord,
   OrderReceipt,
+  CourseSkill,
 } from '../types/domain';
-import {
-  INITIAL_COURSES,
-  INITIAL_COHORTS,
-  INITIAL_CLASS_SESSIONS,
-  INITIAL_UPCOMING_TASKS,
-  INITIAL_DISCUSSION_THREADS,
-  INITIAL_COHORT_MATERIALS,
-  INITIAL_CERTIFICATES,
-  INITIAL_RECEIPTS,
-  AVATAR_MINH_KHOA,
-  AVATAR_HOANG_NAM,
-} from '../data/mockDatabase';
 import {
   evaluateSessionQuizAndUnlock,
   QuizEvaluationOutput,
   updateSessionWatchPosition,
 } from '../utils/academyLogic';
+import { AVATAR_MINH_KHOA } from '../components/BotanicalStickers';
+import { authApi } from '../services/auth.api';
+import { catalogApi } from '../services/catalog.api';
+import { learningApi } from '../services/learning.api';
+import { orderApi } from '../services/order.api';
+import { teachApi } from '../services/teach.api';
+import { adminApi } from '../services/admin.api';
 
 export type StudentSidebarTab =
   | 'TODAY'
@@ -68,6 +64,8 @@ interface AcademyContextValue {
   isCommandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
   courses: Course[];
+  categories: { id: string; name: string; count: number }[];
+  skills: CourseSkill[];
   cohorts: Cohort[];
   createCohort: (newCohort: {
     courseId: string;
@@ -91,6 +89,7 @@ interface AcademyContextValue {
   enrollInCohort: (cohortCode: string) => OrderReceipt | null;
   submitSessionQuiz: (sessionId: string, answers: number[]) => QuizEvaluationOutput | null;
   updateWatchSec: (sessionId: string, sec: number) => void;
+  updateVideoProgress: (sessionId: string, sec: number) => Promise<void>;
   upcomingTasks: UpcomingTaskItem[];
   discussions: DiscussionThread[];
   addDiscussionQuestion: (
@@ -100,12 +99,29 @@ interface AcademyContextValue {
     title: string,
     body: string
   ) => void;
+  createDiscussionQuestion: (
+    cohortId: string,
+    sessionOrder: number,
+    timestampLabel: string,
+    title: string,
+    body: string
+  ) => Promise<void>;
   replyToDiscussionAsStaff: (threadId: string, replyText: string) => void;
   materials: CohortMaterial[];
-  addCohortMaterial: (cohortId: string, sessionOrder: number, title: string, fileType: 'PDF' | 'SLIDE' | 'REPO' | 'NOTEBOOK') => void;
+  addCohortMaterial: (
+    cohortId: string,
+    sessionOrder: number,
+    title: string,
+    fileType: 'PDF' | 'SLIDE' | 'REPO' | 'NOTEBOOK'
+  ) => void;
   certificates: Record<string, CertificateRecord>;
   toggleCertificateRevoke: (certCode: string) => void;
-  issueNewCertificate: (studentName: string, studentEmail: string, cohortCode: string, finalScore: number) => string;
+  issueNewCertificate: (
+    studentName: string,
+    studentEmail: string,
+    cohortCode: string,
+    finalScore: number
+  ) => string;
   receipts: OrderReceipt[];
   studentSidebarTab: StudentSidebarTab;
   setStudentSidebarTab: (tab: StudentSidebarTab) => void;
@@ -123,6 +139,110 @@ interface AcademyContextValue {
   searchQueryGlobal: string;
   setSearchQueryGlobal: (q: string) => void;
 }
+
+const FALLBACK_BOOT_COURSE: Course = {
+  id: 'course-ai-eng',
+  slug: 'ky-su-ai-thuc-chien-rag-agents',
+  title: 'Kỹ Sư AI Thực Chiến: Xây Dựng Hệ Thống RAG & Đa Tác Tử Doanh Nghiệp',
+  category: 'AI & Dữ liệu',
+  difficultyLevel: 2,
+  shortDescription: 'Đang tải thông tin khóa học từ hệ thống...',
+  descriptionMd: 'Đang tải thông tin khóa học từ hệ thống...',
+  syllabusTemplate: [
+    {
+      order: 1,
+      title: 'Buổi 1: Kiến trúc tổng thể hệ thống Trợ lý AI doanh nghiệp',
+      summary: 'Khởi tạo luồng dữ liệu và chỉ mục tìm kiếm.',
+      activityTags: ['THEORY', 'LIVE_CODING'],
+    },
+  ],
+  skills: [
+    { type: 'LEARNING_OUTCOME', code: 'HYBRID-RAG', name: 'Xây dựng Tìm kiếm Kết hợp (Hybrid RAG)' },
+  ],
+  ratingAvg: 4.9,
+  reviewCount: 128,
+};
+
+const FALLBACK_BOOT_COHORT: Cohort = {
+  id: 'cohort-ai-k01',
+  courseId: 'course-ai-eng',
+  instructorId: 'usr-inst-khoa',
+  code: 'AI-ENG-K01',
+  name: 'Kỹ Sư AI Thực Chiến — Khóa K01',
+  curriculumVersion: 'v2.4',
+  tuitionVnd: 6800000,
+  enrolledCount: 48,
+  enrollmentOpenAt: '01/10/2026',
+  startDate: '15/10/2026',
+  endDate: '15/12/2026',
+  scheduleSlots: [
+    { dayOfWeek: 3, startTime: '19:30', endTime: '21:30' },
+    { dayOfWeek: 6, startTime: '19:30', endTime: '21:30' },
+  ],
+  status: 'ONGOING',
+  staff: [
+    {
+      id: 'st-01',
+      role: 'INSTRUCTOR',
+      fullName: 'TS. Trần Minh Khoa',
+      headline: 'Giảng viên chính',
+      avatarUrl: AVATAR_MINH_KHOA,
+      organization: '3T Academy',
+    },
+  ],
+};
+
+const FALLBACK_BOOT_SESSION: ClassSession = {
+  id: 'sess-ai-04',
+  cohortId: 'cohort-ai-k01',
+  sessionOrder: 4,
+  title: 'Buổi 4: Bóc tách PDF an toàn & Phân quyền truy cập tài liệu',
+  activityTags: ['LIVE_CODING', 'WORKSHOP'],
+  hostInstructorName: 'TS. Trần Minh Khoa',
+  scheduledStart: '05/11/2026 · 19:30',
+  scheduledEnd: '05/11/2026 · 21:30',
+  status: 'REPLAY_READY',
+  videoR2Key: 'cohorts/k01/sess-04/master.m3u8',
+  videoProvider: 'R2_HLS_AES128',
+  durationSeconds: 5400,
+  lastPositionSec: 4920,
+  attachmentsCount: 3,
+  quizStatus: 'PASSED',
+  quizScore: 90,
+  isCompleted: true,
+  aiSummaryMd: 'Tóm tắt nội dung buổi học đang được đồng bộ từ hệ thống...',
+  quizQuestions: [
+    {
+      id: 'q-boot-1',
+      question: 'Phương pháp nào giúp giữ nguyên cấu trúc bảng biểu trong tài liệu PDF?',
+      options: [
+        'Nhận diện bảng biểu và chuyển sang Markdown kèm tiêu đề mục cha',
+        'Cắt nhỏ cố định mỗi 100 ký tự',
+        'Xóa toàn bộ bảng biểu',
+        'Chuyển thành ảnh tĩnh không văn bản',
+      ],
+      correctIndex: 0,
+      explanation: 'Giữ nguyên cấu trúc bảng Markdown giúp mô hình hiểu chính xác hàng và cột.',
+    },
+  ],
+  aiCitations: [],
+};
+
+const FALLBACK_BOOT_CERT: CertificateRecord = {
+  certificateCode: 'CERT-3T-2026-8891',
+  studentName: 'Nguyễn Văn An',
+  studentEmail: 'an.nguyen.dev@gmail.com',
+  courseTitle: 'Kỹ Sư AI Thực Chiến: Xây Dựng Hệ Thống RAG & Đa Tác Tử Doanh Nghiệp',
+  cohortCode: 'AI-ENG-K01',
+  issuedAt: '12/11/2026',
+  verificationSignature: '3T-SHA256-VERIFIED-8891',
+  finalScore: 94,
+  proctoringIntegrity: 'Đã xác thực hợp lệ 100% qua hệ thống giám thị AI',
+  isRevoked: false,
+  skillsMastered: [
+    { code: 'HYBRID-RAG', name: 'Xây dựng Tìm kiếm Kết hợp (Hybrid RAG)', score: 94 },
+  ],
+};
 
 const AcademyContext = createContext<AcademyContextValue | undefined>(undefined);
 
@@ -159,20 +279,22 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [theme, setThemeState] = useState<'light' | 'dark'>('light');
   const [isCommandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
-  const [courses] = useState<Course[]>(INITIAL_COURSES);
-  const [cohorts, setCohorts] = useState<Cohort[]>(INITIAL_COHORTS);
-  const [sessions, setSessions] = useState<ClassSession[]>(INITIAL_CLASS_SESSIONS);
+  const [courses, setCourses] = useState<Course[]>([FALLBACK_BOOT_COURSE]);
+  const [categories, setCategories] = useState<{ id: string; name: string; count: number }[]>([]);
+  const [skills, setSkills] = useState<CourseSkill[]>(FALLBACK_BOOT_COURSE.skills);
+  const [cohorts, setCohorts] = useState<Cohort[]>([FALLBACK_BOOT_COHORT]);
+  const [sessions, setSessions] = useState<ClassSession[]>([FALLBACK_BOOT_SESSION]);
   const [enrolledCohortIds, setEnrolledCohortIds] = useState<string[]>([
     'cohort-ai-k01',
     'cohort-py-k04',
   ]);
-  const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTaskItem[]>(INITIAL_UPCOMING_TASKS);
-  const [discussions, setDiscussions] = useState<DiscussionThread[]>(INITIAL_DISCUSSION_THREADS);
-  const [materials, setMaterials] = useState<CohortMaterial[]>(INITIAL_COHORT_MATERIALS);
-  const [certificates, setCertificates] = useState<Record<string, CertificateRecord>>(
-    INITIAL_CERTIFICATES
-  );
-  const [receipts, setReceipts] = useState<OrderReceipt[]>(INITIAL_RECEIPTS);
+  const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTaskItem[]>([]);
+  const [discussions, setDiscussions] = useState<DiscussionThread[]>([]);
+  const [materials, setMaterials] = useState<CohortMaterial[]>([]);
+  const [certificates, setCertificates] = useState<Record<string, CertificateRecord>>({
+    [FALLBACK_BOOT_CERT.certificateCode]: FALLBACK_BOOT_CERT,
+  });
+  const [receipts, setReceipts] = useState<OrderReceipt[]>([]);
 
   const [studentSidebarTab, setStudentSidebarTab] = useState<StudentSidebarTab>(() => {
     const p = window.location.pathname || '/';
@@ -202,6 +324,92 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [activePlayerSessionId, setActivePlayerSessionId] = useState<string | null>(null);
   const [searchQueryGlobal, setSearchQueryGlobal] = useState('');
 
+  // 1. Hydrate Catalog, Cohorts, Sessions, Discussions, Materials, Certificates from Service APIs on startup
+  useEffect(() => {
+    let isMounted = true;
+    const hydrateCatalogAndWorkspace = async () => {
+      try {
+        const [
+          coursesRes,
+          categoriesRes,
+          skillsRes,
+          cohortsRes,
+          certsRes,
+          scheduleRes,
+          meRes,
+        ] = await Promise.all([
+          catalogApi.getCourses(),
+          catalogApi.getCategories(),
+          catalogApi.getSkills(),
+          catalogApi.getCohorts(),
+          catalogApi.getCertificates(),
+          teachApi.getInstructorSchedule(),
+          authApi.getMe().catch(() => null),
+        ]);
+
+        if (!isMounted) return;
+        if (coursesRes.length > 0) setCourses(coursesRes);
+        setCategories(categoriesRes);
+        if (skillsRes.length > 0) setSkills(skillsRes);
+        if (cohortsRes.length > 0) setCohorts(cohortsRes);
+        if (Object.keys(certsRes).length > 0) setCertificates(certsRes);
+        if (scheduleRes.allSessions && scheduleRes.allSessions.length > 0) {
+          setSessions(scheduleRes.allSessions);
+        }
+        if (scheduleRes.discussions) {
+          setDiscussions(scheduleRes.discussions);
+        }
+        if (scheduleRes.materials) {
+          setMaterials(scheduleRes.materials);
+        }
+        if (meRes?.role) {
+          setRoleState(meRes.role);
+        }
+      } catch {
+        // Keep safe initial state on error
+      }
+    };
+    void hydrateCatalogAndWorkspace();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. When role === 'STUDENT', call learningApi.getMyEnrollments(), orderApi.getMyOrderHistory(), and authApi.getMe()
+  useEffect(() => {
+    if (role !== 'STUDENT') return;
+    let isMounted = true;
+    const hydrateStudentAccount = async () => {
+      try {
+        const [enrollmentsRes, ordersRes, meRes, dashboardRes] = await Promise.all([
+          learningApi.getMyEnrollments(),
+          orderApi.getMyOrderHistory(),
+          authApi.getMe(),
+          learningApi.getStudentDashboard(),
+        ]);
+        if (!isMounted) return;
+        if (enrollmentsRes.enrolledCohortIds?.length > 0) {
+          setEnrolledCohortIds(enrollmentsRes.enrolledCohortIds);
+        }
+        if (ordersRes?.length > 0) {
+          setReceipts(ordersRes);
+        } else if (enrollmentsRes.receipts?.length > 0) {
+          setReceipts(enrollmentsRes.receipts);
+        }
+        if (dashboardRes.upcomingTasks) {
+          setUpcomingTasks(dashboardRes.upcomingTasks);
+        }
+        void meRes;
+      } catch {
+        // Keep existing state on error
+      }
+    };
+    void hydrateStudentAccount();
+    return () => {
+      isMounted = false;
+    };
+  }, [role]);
+
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -216,10 +424,8 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const nextPath = window.location.pathname || '/';
       setCurrentPath(nextPath);
       if (nextPath.startsWith('/teach')) {
-        setRoleState('INSTRUCTOR');
         setInstructorSidebarTab(mapTeachPathToTab(nextPath));
       } else if (nextPath.startsWith('/admin')) {
-        setRoleState('ADMIN');
         setAdminSidebarTab(mapAdminPathToTab(nextPath));
       } else if (nextPath.startsWith('/app/profile-cv')) {
         setStudentSidebarTab('PROFILE_CV');
@@ -251,25 +457,19 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
     window.history.pushState({}, '', path);
     setCurrentPath(path);
     if (path.startsWith('/teach')) {
-      setRoleState('INSTRUCTOR');
       setInstructorSidebarTab(mapTeachPathToTab(path));
     } else if (path.startsWith('/admin')) {
-      setRoleState('ADMIN');
       setAdminSidebarTab(mapAdminPathToTab(path));
     } else if (path.startsWith('/app/profile-cv')) {
-      setRoleState('STUDENT');
       setStudentSidebarTab('PROFILE_CV');
     } else if (path.startsWith('/app/mock-interview')) {
-      setRoleState('STUDENT');
       setStudentSidebarTab('MOCK_INTERVIEW');
     } else if (path.startsWith('/app/progress')) {
-      setRoleState('STUDENT');
       setStudentSidebarTab('SKILL_MAP');
     }
     window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, []);
 
-  // Strictly separate layouts when role changes!
   const setRole = useCallback((newRole: AppRole) => {
     setRoleState(newRole);
     if (newRole === 'INSTRUCTOR') {
@@ -287,6 +487,7 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setCurrentPath('/app');
       }
     } else if (newRole === 'GUEST') {
+      void authApi.logout();
       if (
         window.location.pathname.startsWith('/app') ||
         window.location.pathname.startsWith('/teach') ||
@@ -309,8 +510,13 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const enrollInCohort = useCallback(
     (cohortCode: string): OrderReceipt | null => {
+      // BẮT BUỘC: Chỉ tài khoản đã đăng nhập với vai trò STUDENT mới được ghi danh
+      if (role !== 'STUDENT') {
+        return null;
+      }
+
       const targetCohort = cohorts.find(
-        (c) => c.code.toLowerCase() === cohortCode.toLowerCase()
+        (c) => c.code.toLowerCase() === cohortCode.toLowerCase() || c.id === cohortCode
       );
       if (!targetCohort) return null;
 
@@ -324,10 +530,6 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         );
       }
 
-      if (role === 'GUEST') {
-        setRoleState('STUDENT');
-      }
-
       const newReceipt: OrderReceipt = {
         orderCode: 'ET20268891',
         cohortCode: targetCohort.code,
@@ -339,6 +541,22 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
 
       setReceipts((prev) => [newReceipt, ...prev.filter((r) => r.orderCode !== 'ET20268891')]);
+
+      // Sync with Order & Learning Service APIs
+      void (async () => {
+        const orderRes = await orderApi.createCohortOrder(
+          targetCohort.id,
+          `idem-ctx-${Date.now()}`
+        );
+        await orderApi.simulateSepayWebhook(orderRes.orderCode);
+        const [enrollmentsRes, myOrdersRes] = await Promise.all([
+          learningApi.getMyEnrollments(),
+          orderApi.getMyOrderHistory(),
+        ]);
+        setEnrolledCohortIds(enrollmentsRes.enrolledCohortIds);
+        setReceipts(myOrdersRes);
+      })();
+
       return newReceipt;
     },
     [cohorts, courses, enrolledCohortIds, role]
@@ -355,32 +573,29 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       instructorName: string;
       taName?: string;
     }) => {
-      const created: Cohort = {
-        id: `cohort-${Date.now()}`,
-        courseId: newCohort.courseId,
-        instructorId: 'usr-inst-khoa',
-        code: newCohort.code,
-        name: newCohort.name,
-        curriculumVersion: 'v2.5',
-        tuitionVnd: newCohort.tuitionVnd,
-        enrolledCount: 1,
-        enrollmentOpenAt: 'Hôm nay',
-        startDate: newCohort.startDate,
-        endDate: '28/02/2027',
-        scheduleSlots: newCohort.scheduleSlots,
-        status: 'OPENING',
-        staff: [
-          {
-            id: `st-inst-${Date.now()}`,
-            role: 'INSTRUCTOR',
-            fullName: newCohort.instructorName,
-            headline: 'Giảng viên chính phụ trách lớp',
-            avatarUrl: AVATAR_MINH_KHOA,
-            organization: '3T Academy',
-          },
-        ],
-      };
-      setCohorts((prev) => [created, ...prev]);
+      void (async () => {
+        const res = await adminApi.manageCohorts({
+          courseId: newCohort.courseId,
+          instructorId: 'usr-inst-khoa',
+          curriculumVersion: 'v2.5',
+          code: newCohort.code,
+          name: newCohort.name,
+          tuitionVnd: newCohort.tuitionVnd,
+          startDate: newCohort.startDate,
+          scheduleSlots: newCohort.scheduleSlots,
+          instructorName: newCohort.instructorName,
+          taName: newCohort.taName,
+        });
+        if (res.cohort) {
+          setCohorts((prev) => [
+            res.cohort!,
+            ...prev.filter((c) => c.id !== res.cohort!.id),
+          ]);
+        } else {
+          const overview = await adminApi.getAdminOverview();
+          setCohorts(overview.cohorts);
+        }
+      })();
     },
     []
   );
@@ -388,17 +603,22 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateCohortSchedule = useCallback(
     (cohortId: string, scheduleSlots: CohortScheduleSlot[]) => {
       setCohorts((prev) =>
-        prev.map((c) =>
-          c.id === cohortId
-            ? {
-                ...c,
-                scheduleSlots,
-              }
-            : c
-        )
+        prev.map((c) => (c.id === cohortId ? { ...c, scheduleSlots } : c))
       );
+      const target = cohorts.find((c) => c.id === cohortId) ?? cohorts[0];
+      void adminApi.manageCohorts({
+        cohortId,
+        courseId: target.courseId,
+        instructorId: target.instructorId,
+        curriculumVersion: target.curriculumVersion,
+        code: target.code,
+        name: target.name,
+        tuitionVnd: target.tuitionVnd,
+        startDate: target.startDate,
+        scheduleSlots,
+      });
     },
-    []
+    [cohorts]
   );
 
   const rescheduleSession = useCallback((sessionId: string, newDateText: string) => {
@@ -413,6 +633,7 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
           : s
       )
     );
+    void teachApi.updateSessionMaterials(sessionId, { scheduledStart: newDateText });
   }, []);
 
   const updateSessionDetails = useCallback(
@@ -430,16 +651,18 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
             : s
         )
       );
+      void teachApi.updateSessionMaterials(sessionId, updates);
     },
     []
   );
 
   const addAiGeneratedQuizToSession = useCallback((sessionId: string) => {
+    void teachApi.generateSessionQuizByAi(sessionId);
     setSessions((prev) =>
       prev.map((s) =>
         s.id === sessionId
           ? {
-              ...s,
+               ...s,
               quizQuestions: [
                 ...s.quizQuestions,
                 {
@@ -490,16 +713,62 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         );
       }
 
+      void learningApi.submitSessionQuiz(sessionId, answers);
       return evaluation;
     },
     [sessions]
   );
 
-  const updateWatchSec = useCallback((sessionId: string, sec: number) => {
+  const updateVideoProgress = useCallback(async (sessionId: string, sec: number) => {
     setSessions((prev) =>
       prev.map((s) => (s.id === sessionId ? updateSessionWatchPosition(s, sec) : s))
     );
+    await learningApi.updateVideoProgress(sessionId, sec);
   }, []);
+
+  const updateWatchSec = useCallback(
+    (sessionId: string, sec: number) => {
+      void updateVideoProgress(sessionId, sec);
+    },
+    [updateVideoProgress]
+  );
+
+  const createDiscussionQuestion = useCallback(
+    async (
+      cohortId: string,
+      sessionOrder: number,
+      timestampLabel: string,
+      title: string,
+      body: string
+    ) => {
+      const targetSession =
+        sessions.find(
+          (s) => s.cohortId === cohortId && s.sessionOrder === sessionOrder
+        ) ?? sessions[0];
+      const parts = (timestampLabel || '14:20').split(':').map(Number);
+      const sec =
+        parts.length === 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])
+          ? parts[0] * 60 + parts[1]
+          : 860;
+
+      const res = await learningApi.createSessionQuestion(
+        targetSession.id,
+        body,
+        sec,
+        title
+      );
+      if (res.thread) {
+        setDiscussions((prev) => [
+          res.thread!,
+          ...prev.filter((d) => d.id !== res.thread!.id),
+        ]);
+      } else {
+        const list = await learningApi.getSessionDiscussions(targetSession.id);
+        setDiscussions(list);
+      }
+    },
+    [sessions]
+  );
 
   const addDiscussionQuestion = useCallback(
     (
@@ -509,38 +778,9 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       title: string,
       body: string
     ) => {
-      const targetSession = sessions.find(
-        (s) => s.cohortId === cohortId && s.sessionOrder === sessionOrder
-      );
-      const newThread: DiscussionThread = {
-        id: `disc-${Date.now()}`,
-        cohortId,
-        sessionOrder,
-        sessionTitle: targetSession?.title ?? `Buổi ${sessionOrder}`,
-        timestampLabel: timestampLabel || '14:20',
-        authorName: 'Nguyễn Văn An',
-        createdAt: 'Vừa xong',
-        questionTitle: title,
-        questionBody: body,
-        isResolved: true,
-        verifiedByStaff: false,
-        hasAiSuggestion: true,
-        replies: [
-          {
-            id: `rep-ai-${Date.now()}`,
-            authorName: 'Trợ giảng AI 3T (Hỗ trợ 24/7)',
-            authorRole: 'AI_TUTOR',
-            createdAt: 'Tức thì',
-            aiCitationSec: timestampLabel || '14:20',
-            content: `Trợ giảng AI đã tìm thấy nội dung liên quan tại phút ${
-              timestampLabel || '14:20'
-            } (Trang 8 tài liệu Buổi ${sessionOrder}): Với câu hỏi "${title}", bạn nên kết hợp lọc theo lớp học trước rồi mới sắp xếp độ liên quan. Trợ giảng Đặng Hoàng Nam cũng đã nhận được thông báo để vào giải đáp thêm cùng bạn nhé!`,
-          },
-        ],
-      };
-      setDiscussions((prev) => [newThread, ...prev]);
+      void createDiscussionQuestion(cohortId, sessionOrder, timestampLabel, title, body);
     },
-    [sessions]
+    [createDiscussionQuestion]
   );
 
   const replyToDiscussionAsStaff = useCallback((threadId: string, replyText: string) => {
@@ -566,6 +806,7 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
           : th
       )
     );
+    void teachApi.replyAndVerifyDiscussion(threadId, replyText);
   }, []);
 
   const addCohortMaterial = useCallback(
@@ -575,19 +816,23 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
       title: string,
       fileType: 'PDF' | 'SLIDE' | 'REPO' | 'NOTEBOOK'
     ) => {
-      const newMat: CohortMaterial = {
-        id: `mat-${Date.now()}`,
-        cohortId,
-        sessionOrder,
-        title,
-        fileType,
-        fileSize: '3.2 MB',
-        updatedAt: 'Vừa tải lên hôm nay',
-        downloadUrl: '#tai-lieu-moi',
-      };
-      setMaterials((prev) => [newMat, ...prev]);
+      const targetSession =
+        sessions.find(
+          (s) => s.cohortId === cohortId && s.sessionOrder === sessionOrder
+        ) ?? sessions[0];
+      void (async () => {
+        const res = await teachApi.updateSessionMaterials(targetSession.id, {
+          cohortId,
+          sessionOrder,
+          materialTitle: title,
+          fileType,
+        });
+        if (res.material) {
+          setMaterials((prev) => [res.material!, ...prev]);
+        }
+      })();
     },
-    []
+    [sessions]
   );
 
   const toggleCertificateRevoke = useCallback((certCode: string) => {
@@ -606,6 +851,7 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         },
       };
     });
+    void adminApi.toggleCertificateRevoke(certCode);
   }, []);
 
   const issueNewCertificate = useCallback(
@@ -642,6 +888,17 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         ...prev,
         [code]: record,
       }));
+
+      void (async () => {
+        const batchRes = await adminApi.issueCertificatesBatch([studentEmail]);
+        if (batchRes.issuedCertificates) {
+          setCertificates((prev) => ({
+            ...prev,
+            ...batchRes.issuedCertificates,
+          }));
+        }
+      })();
+
       return code;
     },
     [cohorts, courses]
@@ -660,6 +917,8 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isCommandPaletteOpen,
         setCommandPaletteOpen,
         courses,
+        categories,
+        skills,
         cohorts,
         createCohort,
         updateCohortSchedule,
@@ -671,9 +930,11 @@ export const AcademyProvider: React.FC<{ children: React.ReactNode }> = ({ child
         enrollInCohort,
         submitSessionQuiz,
         updateWatchSec,
+        updateVideoProgress,
         upcomingTasks,
         discussions,
         addDiscussionQuestion,
+        createDiscussionQuestion,
         replyToDiscussionAsStaff,
         materials,
         addCohortMaterial,

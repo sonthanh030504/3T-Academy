@@ -18,6 +18,12 @@ export interface CourseDetailWithCohortsResponse {
   };
 }
 
+export interface AcademyFaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
 export const catalogApi = {
   getCategories: () =>
     httpRequest<{ id: string; name: string; count: number }[]>('/categories', {
@@ -37,6 +43,21 @@ export const catalogApi = {
       { method: 'GET' }
     ),
 
+  getCohorts: () =>
+    httpRequest<Cohort[]>('/cohorts', {
+      method: 'GET',
+    }),
+
+  getFaqs: () =>
+    httpRequest<AcademyFaqItem[]>('/faqs', {
+      method: 'GET',
+    }),
+
+  getCertificates: () =>
+    httpRequest<Record<string, CertificateRecord>>('/certificates', {
+      method: 'GET',
+    }),
+
   getCourseBySlug: (slug: string) =>
     httpRequest<CourseDetailWithCohortsResponse>(`/courses/${encodeURIComponent(slug)}`, {
       method: 'GET',
@@ -52,8 +73,38 @@ export const catalogApi = {
       body: JSON.stringify({ goal, background }),
     }),
 
+  askCareerAdvisor: (goal: string, background?: string) =>
+    httpRequest<{
+      replyText: string;
+      recommendedCourseSlug: string;
+      recommendedCohortId: string;
+    }>('/advisor/ask', {
+      method: 'POST',
+      body: JSON.stringify({ goal, background }),
+    }),
+
   verifyCertificateByCode: (code: string) =>
-    httpRequest<{ found: boolean; certificate: CertificateRecord }>(
+    httpRequest<{
+      found: boolean;
+      accessDenied?: boolean;
+      isOwner?: boolean;
+      errorCode?: 'FORBIDDEN_OTHER_STUDENT' | 'NOT_FOUND';
+      message?: string;
+      certificate: CertificateRecord | null;
+    }>(
+      `/certificates/verify/${encodeURIComponent(code)}`,
+      { method: 'GET' }
+    ),
+
+  verifyCertificate: (code: string) =>
+    httpRequest<{
+      found: boolean;
+      accessDenied?: boolean;
+      isOwner?: boolean;
+      errorCode?: 'FORBIDDEN_OTHER_STUDENT' | 'NOT_FOUND';
+      message?: string;
+      certificate: CertificateRecord | null;
+    }>(
       `/certificates/verify/${encodeURIComponent(code)}`,
       { method: 'GET' }
     ),

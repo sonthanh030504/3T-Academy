@@ -1,8 +1,9 @@
 export interface McqQuestionItem {
+  id?: string;
   number: number;
   scenarioTag: string;
   prompt: string;
-  options: [string, string, string, string];
+  options: [string, string, string, string] | string[];
   correctIndex: number;
   explanation: string;
   skillCode: string;
@@ -14,14 +15,17 @@ export interface McqQuestionItem {
 }
 
 export interface StudentSafePromptConfigItem {
+  id?: string;
   number: number;
   scenarioTag: string;
   prompt: string;
-  options: [string, string, string, string];
+  options: [string, string, string, string] | string[];
   skillCode: string;
   skillName: string;
   slideLabel: string;
 }
+
+export type StudentSafeMcqPromptItem = StudentSafePromptConfigItem;
 
 export type AssessmentPublishStatus = 'DRAFT' | 'PUBLISHED';
 
@@ -413,13 +417,16 @@ export function toStudentSafePromptConfig(
 
 export interface StoredMcqAttemptResult {
   assessmentId: string;
+  title?: string;
   isFinalExam: boolean;
   totalQuestions: number;
   correctCount: number;
   scoreOutOf10: number;
+  scorePercent?: number;
   passed: boolean;
   submittedAt: string;
   selectedAnswers: Record<number, number>;
+  selectedIndices?: number[];
   updatedSkills: {
     code: string;
     name: string;
@@ -432,7 +439,7 @@ export interface StoredMcqAttemptResult {
     prompt: string;
     chosenIndex: number;
     correctIndex: number;
-    options: [string, string, string, string];
+    options: [string, string, string, string] | string[];
     explanation: string;
     reviewTimestampLabel: string;
     reviewJumpSec: number;
@@ -573,5 +580,65 @@ export function loadStoredMcqResult(assessmentId: string): StoredMcqAttemptResul
     defaultAnswers[q.number] = q.number === 4 ? (q.correctIndex + 1) % 4 : q.correctIndex;
   });
 
-  return evaluateMcqSubmission(assessmentId, isFinal, questions, defaultAnswers);
+  const evaluated = evaluateMcqSubmission(assessmentId, isFinal, questions, defaultAnswers);
+  return {
+    ...evaluated,
+    title: isFinal
+      ? 'Đề thi Tốt nghiệp Cuối khóa (25 câu trắc nghiệm)'
+      : 'Bài kiểm tra Mở khóa Cuối buổi học (10 câu trắc nghiệm)',
+    scorePercent: Math.round(evaluated.scoreOutOf10 * 10),
+    selectedIndices: questions.map((q) => defaultAnswers[q.number] ?? 0),
+  };
 }
+
+export function saveStoredMcqResult(assessmentId: string, result: StoredMcqAttemptResult): void {
+  try {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(
+        `${STORAGE_KEY_PREFIX}${assessmentId}`,
+        JSON.stringify(result)
+      );
+    }
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+export function gradeMcqSubmissionServerSide(
+  assessmentId: string,
+  questions: McqQuestionItem[],
+  selectedIndices: number[],
+  isFinalExam: boolean
+): StoredMcqAttemptResult {
+  const selectedAnswers: Record<number, number> = {};
+  questions.forEach((q, idx) => {
+    selectedAnswers[q.number] =
+      typeof selectedIndices[idx] === 'number' ? selectedIndices[idx] : 0;
+  });
+  const res = evaluateMcqSubmission(assessmentId, isFinalExam, questions, selectedAnswers);
+  return {
+    ...res,
+    title: isFinalExam
+      ? 'Đề thi Tốt nghiệp Cuối khóa (25 câu trắc nghiệm)'
+      : 'Bài kiểm tra Mở khóa Cuối buổi học (10 câu trắc nghiệm)',
+    scorePercent: Math.round(res.scoreOutOf10 * 10),
+    selectedIndices,
+  };
+}
+
+const publishStatusMemoryMap: Record<string, AssessmentPublishStatus> = {};
+
+export function getAssessmentPublishStatus(assessmentId: string): AssessmentPublishStatus {
+  if (publishStatusMemoryMap[assessmentId]) {
+    return publishStatusMemoryMap[assessmentId];
+  }
+  return 'PUBLISHED';
+}
+
+export function setAssessmentPublishStatus(
+  assessmentId: string,
+  status: AssessmentPublishStatus
+): void {
+  publishStatusMemoryMap[assessmentId] = status;
+}
+

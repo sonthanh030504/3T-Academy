@@ -1,12 +1,43 @@
 import { httpRequest } from './apiClient';
-import { Cohort, ClassSession } from '../types/domain';
+import {
+  Cohort,
+  ClassSession,
+  DiscussionThread,
+  CohortMaterial,
+  Enrollment,
+  ChatMessage,
+  Notification,
+} from '../types/domain';
 import { McqQuestionItem, AssessmentPublishStatus } from '../data/phase2QuizBank';
+
+export type { McqQuestionItem, AssessmentPublishStatus };
+
+export interface ExamCameraReviewItem {
+  id: string;
+  studentName: string;
+  studentEmail?: string;
+  cohortCode: string;
+  examTitle?: string;
+  mcqScore: string;
+  submittedAt?: string;
+  cameraFlagReason: string;
+  cameraTimestamp: string;
+  snapshotNote: string;
+  decision: 'PENDING' | 'APPROVED' | 'RETAKE_REQUIRED';
+}
 
 export const teachApi = {
   getInstructorSchedule: () =>
     httpRequest<{
       liveSession: ClassSession;
       upcomingSessions: ClassSession[];
+      allSessions: ClassSession[];
+      examReviews: ExamCameraReviewItem[];
+      enrollments: Enrollment[];
+      chatMessages: ChatMessage[];
+      notifications: Notification[];
+      discussions: DiscussionThread[];
+      materials: CohortMaterial[];
     }>('/teach/schedule', {
       method: 'GET',
     }),
@@ -21,6 +52,10 @@ export const teachApi = {
       cohort: Cohort;
       sessions: ClassSession[];
       finalExamQuestions: McqQuestionItem[];
+      finalExamPublishStatus?: AssessmentPublishStatus;
+      enrollments?: Enrollment[];
+      discussions?: DiscussionThread[];
+      materials?: CohortMaterial[];
     }>(`/teach/cohorts/${encodeURIComponent(cohortId)}`, {
       method: 'GET',
     }),
@@ -30,6 +65,8 @@ export const teachApi = {
       session: ClassSession;
       questions: McqQuestionItem[];
       publishStatus: AssessmentPublishStatus;
+      materials?: CohortMaterial[];
+      discussions?: DiscussionThread[];
     }>(
       `/teach/cohorts/${encodeURIComponent(cohortId)}/sessions/${encodeURIComponent(
         sessionId
@@ -39,15 +76,26 @@ export const teachApi = {
 
   updateSessionMaterials: (
     sessionId: string,
-    payload: { aiSummaryMd?: string; materialTitle?: string; fileType?: 'SLIDE' | 'PDF' }
+    payload: {
+      title?: string;
+      aiSummaryMd?: string;
+      scheduledStart?: string;
+      cohortId?: string;
+      sessionOrder?: number;
+      materialTitle?: string;
+      fileType?: 'SLIDE' | 'PDF' | 'REPO' | 'NOTEBOOK';
+    }
   ) =>
-    httpRequest<{ sessionId: string; updated: boolean; updatedAt: string }>(
-      `/teach/sessions/${encodeURIComponent(sessionId)}/materials`,
-      {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      }
-    ),
+    httpRequest<{
+      sessionId: string;
+      updated: boolean;
+      updatedAt: string;
+      session?: ClassSession;
+      material?: CohortMaterial;
+    }>(`/teach/sessions/${encodeURIComponent(sessionId)}/materials`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
 
   generateSessionQuizByAi: (sessionId: string) =>
     httpRequest<{
@@ -84,6 +132,7 @@ export const teachApi = {
       threadId: string;
       verifiedByStaff: boolean;
       repliedAt: string;
+      thread?: DiscussionThread;
     }>(`/teach/discussions/${encodeURIComponent(threadId)}/reply`, {
       method: 'POST',
       body: JSON.stringify({ content }),
@@ -113,4 +162,3 @@ export const teachApi = {
       method: 'POST',
     }),
 };
-

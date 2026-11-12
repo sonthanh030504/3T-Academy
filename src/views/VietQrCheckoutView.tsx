@@ -10,6 +10,8 @@ import {
   Download,
   ArrowRight,
   RotateCcw,
+  Lock,
+  LogIn,
 } from 'lucide-react';
 import { useAcademy } from '../context/AcademyContext';
 import {
@@ -20,9 +22,11 @@ import {
 } from '../utils/academyLogic';
 import { CelebrationBotanicalSticker } from '../components/BotanicalStickers';
 import { OrderReceipt } from '../types/domain';
+import { orderApi, SepayOrderCreatedResponse } from '../services/order.api';
+import { learningApi } from '../services/learning.api';
 
 export const VietQrCheckoutView: React.FC<{ cohortCode: string }> = ({ cohortCode }) => {
-  const { cohorts, courses, enrollInCohort, navigate } = useAcademy();
+  const { cohorts, courses, enrollInCohort, navigate, role } = useAcademy();
 
   const targetCohort =
     cohorts.find((c) => c.code.toLowerCase() === cohortCode.toLowerCase()) ?? cohorts[0];
@@ -34,17 +38,44 @@ export const VietQrCheckoutView: React.FC<{ cohortCode: string }> = ({ cohortCod
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<OrderReceipt | null>(null);
   const [icsDownloaded, setIcsDownloaded] = useState(false);
+  const [order, setOrder] = useState<SepayOrderCreatedResponse>({
+    orderCode: 'ET20268891',
+    cohortId: targetCohort.id,
+    cohortCode: targetCohort.code,
+    amountVnd: targetCohort.tuitionVnd,
+    status: 'PENDING',
+    bankName: 'MBBank (Ngân hàng Quân Đội)',
+    accountNumber: '098877665544',
+    accountHolder: 'CONG TY CO PHAN CONG NGHE GIAO DUC 3T ACADEMY',
+    transferContent: 'ET20268891',
+    qrImageUrl: `https://img.vietqr.io/image/MB-098877665544-compact2.png?amount=${targetCohort.tuitionVnd}&addInfo=ET20268891`,
+  });
 
-  const orderCode = 'ET20268891';
-  const accountNumber = '0988776655';
-  const accountHolder = 'HOC VIEN CONG NGHE 3T ACADEMY';
+  useEffect(() => {
+    let active = true;
+    const createOrder = async () => {
+      const idempotencyKey = `idem-checkout-${targetCohort.id}`;
+      const created = await orderApi.createCohortOrder(targetCohort.id, idempotencyKey);
+      if (active) {
+        setOrder(created);
+      }
+    };
+    void createOrder();
+    return () => {
+      active = false;
+    };
+  }, [targetCohort.id]);
+
+  const orderCode = order.orderCode;
+  const accountNumber = order.accountNumber;
+  const accountHolder = order.accountHolder;
 
   useEffect(() => {
     if (paymentState !== 'WAITING') return;
     const timer = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
-          setPaymentState('EXPIRED');
+           setPaymentState('EXPIRED');
           return 0;
         }
         return prev - 1;
@@ -59,18 +90,27 @@ export const VietQrCheckoutView: React.FC<{ cohortCode: string }> = ({ cohortCod
     setTimeout(() => setCopiedField(null), 1800);
   };
 
-  const handleTriggerSePaySuccess = () => {
+  const handleTriggerSePaySuccess = async () => {
+    const webhookRes = await orderApi.simulateSepayWebhook(order.orderCode);
+    const statusRes = await orderApi.getOrderStatus(order.orderCode);
+    const enrollmentsRes = await learningApi.getMyEnrollments();
+
     const newReceipt = enrollInCohort(targetCohort.code);
+    const matchedApiReceipt = enrollmentsRes.receipts.find(
+      (r) => r.orderCode === order.orderCode
+    );
+
     setReceipt(
-      newReceipt ?? {
-        orderCode,
-        cohortCode: targetCohort.code,
-        courseTitle: course.title,
-        amountVnd: targetCohort.tuitionVnd,
-        paidAt: '08/11/2026 · Xác nhận tự động qua SePay Webhook (2.1 giây)',
-        bankName: 'MBBank — Ngân hàng Quân Đội (VietQR Napas247)',
-        transactionRef: 'SEPAY-MB-99881204',
-      }
+      matchedApiReceipt ??
+        newReceipt ?? {
+          orderCode: statusRes.orderCode || order.orderCode,
+          cohortCode: targetCohort.code,
+          courseTitle: course.title,
+          amountVnd: order.amountVnd,
+          paidAt: statusRes.paidAt || webhookRes.paidAt,
+          bankName: order.bankName,
+          transactionRef: webhookRes.transactionRef,
+        }
     );
     setPaymentState('SUCCESS');
   };
@@ -88,6 +128,42 @@ export const VietQrCheckoutView: React.FC<{ cohortCode: string }> = ({ cohortCod
     URL.revokeObjectURL(url);
     setIcsDownloaded(true);
   };
+
+  if (role !== 'STUDENT') {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-5">
+        <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-[#F59E0B] flex items-center justify-center mx-auto">
+          <Lock className="w-7 h-7" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] dark:text-[#ECFDF5]">
+            Yêu cầu đăng nhập tài khoản Học viên
+          </h1>
+          <p className="text-sm text-[#475569] dark:text-[#94A3B8] leading-relaxed">
+            Bạn cần đăng nhập tài khoản học viên để tiến hành ghi danh và thanh toán học phí đợt học{' '}
+            <strong className="font-mono text-[#059669] dark:text-[#34D399]">{targetCohort.code}</strong>.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer shadow-xs"
+          >
+            <LogIn className="w-4 h-4" />
+            <span>Đăng nhập tài khoản Học viên</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] text-xs sm:text-sm font-semibold text-[#0F172A] dark:text-[#ECFDF5] cursor-pointer"
+          >
+            <span>Về trang chủ</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (paymentState === 'SUCCESS' && receipt) {
     return (

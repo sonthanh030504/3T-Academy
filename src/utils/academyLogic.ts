@@ -387,3 +387,24 @@ export function generateCohortIcsContent(cohort: Cohort, courseTitle: string): s
     'END:VCALENDAR',
   ].join('\r\n');
 }
+
+/**
+ * Kiểm tra tính hợp lệ về phân quyền khi ghi danh đợt học:
+ * BẮT BUỘC người dùng phải đăng nhập tài khoản học viên (STUDENT).
+ * Các tài khoản GUEST (khách chưa đăng nhập), INSTRUCTOR (giảng viên), hoặc ADMIN (quản trị) không được phép ghi danh.
+ */
+export function isEligibleToEnroll(role: string): { eligible: boolean; reason?: string } {
+  if (role === 'GUEST') {
+    return {
+      eligible: false,
+      reason: 'Yêu cầu đăng nhập tài khoản Học viên trước khi ghi danh đợt học.',
+    };
+  }
+  if (role !== 'STUDENT') {
+    return {
+      eligible: false,
+      reason: `Tài khoản vai trò ${role} không áp dụng ghi danh khóa học.`,
+    };
+  }
+  return { eligible: true };
+}

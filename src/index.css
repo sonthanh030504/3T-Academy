@@ -4,6 +4,7 @@
 @layer base {
   :root {
     --font-sans: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-serif: 'Playfair Display', 'Merriweather', Georgia, serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
   }
 

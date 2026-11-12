@@ -4,6 +4,8 @@ import { useAcademy } from '../context/AcademyContext';
 import { CourseCategory } from '../types/domain';
 import { formatVnd, formatScheduleSlots } from '../utils/academyLogic';
 import { EmptyStateBotanicalIllustration } from '../components/BotanicalStickers';
+import { useAsyncData } from '../hooks/useAsyncData';
+import { catalogApi } from '../services/catalog.api';
 
 const CATEGORIES: CourseCategory[] = [
   'AI & Dữ liệu',
@@ -23,7 +25,7 @@ const DIFFICULTY_LABELS: Record<number, { text: string; colorClass: string }> = 
 
 export const CoursesCatalogView: React.FC = () => {
   const {
-    courses,
+    courses: contextCourses,
     cohorts,
     navigate,
     searchQueryGlobal,
@@ -35,6 +37,17 @@ export const CoursesCatalogView: React.FC = () => {
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [onlyOpeningCohorts, setOnlyOpeningCohorts] = useState<boolean>(true);
   const [sortBy, setSortBy] = useState<'POPULAR' | 'PRICE_ASC' | 'DIFFICULTY'>('POPULAR');
+
+  const { data: apiCourses } = useAsyncData(
+    () =>
+      catalogApi.getCourses({
+        category: selectedCategory === 'ALL' ? '' : selectedCategory,
+        query: searchQueryGlobal,
+      }),
+    [selectedCategory, searchQueryGlobal]
+  );
+
+  const courses = apiCourses ?? contextCourses;
 
   const filteredCourses = useMemo(() => {
     const q = searchQueryGlobal.trim().toLowerCase();
@@ -83,7 +96,7 @@ export const CoursesCatalogView: React.FC = () => {
         );
         return minA - minB;
       }
-      return b.reviewCount - a.reviewCount;
+      return (b.reviewCount ?? 0) - (a.reviewCount ?? 0);
     });
   }, [
     courses,

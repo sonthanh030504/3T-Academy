@@ -3,7 +3,15 @@ import {
   StudentSafePromptConfigItem,
   StoredMcqAttemptResult,
   AssessmentPublishStatus,
+  McqQuestionItem,
 } from '../data/phase2QuizBank';
+
+export type {
+  StudentSafePromptConfigItem,
+  StoredMcqAttemptResult,
+  AssessmentPublishStatus,
+  McqQuestionItem,
+};
 
 export interface StudentAssessmentPayload {
   assessmentId: string;
@@ -13,7 +21,15 @@ export interface StudentAssessmentPayload {
   questionCount: number;
   timeLimitMinutes: number;
   isRetakeLocked: boolean;
+  hasPassedFinalExam?: boolean;
   promptConfig: StudentSafePromptConfigItem[];
+}
+
+export interface AssessmentResultWithMeta extends StoredMcqAttemptResult {
+  hasStoredAttempt?: boolean;
+  hasPassedFinalExam?: boolean;
+  questionsWithExplanations?: McqQuestionItem[];
+  submission?: StoredMcqAttemptResult;
 }
 
 export const assessmentApi = {
@@ -37,7 +53,7 @@ export const assessmentApi = {
     ),
 
   getAssessmentResult: (assessmentId: string) =>
-    httpRequest<StoredMcqAttemptResult>(
+    httpRequest<AssessmentResultWithMeta>(
       `/assessments/${encodeURIComponent(assessmentId)}/result`,
       { method: 'GET' }
     ),

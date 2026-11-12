@@ -23,9 +23,10 @@ import {
   CompetencyVerifiedShield,
   AvatarWithFallback,
 } from '../components/BotanicalStickers';
+import { GraduationCertificateDiploma } from '../components/GraduationCertificateDiploma';
 import { studentLearningApi } from '../services/learning.api';
-import { useAsyncQuery } from '../hooks/useAsyncData';
-import { hasStudentPassedFinalExam } from '../data/phase2QuizBank';
+import { assessmentApi } from '../services/assessment.api';
+import { useAsyncData, useAsyncQuery } from '../hooks/useAsyncData';
 
 export const CohortWorkspaceView: React.FC<{ cohortId: string }> = ({ cohortId }) => {
   const {
@@ -34,6 +35,7 @@ export const CohortWorkspaceView: React.FC<{ cohortId: string }> = ({ cohortId }
     sessions,
     materials,
     certificates,
+    setStudentSidebarTab,
     navigate,
   } = useAcademy();
 
@@ -51,8 +53,14 @@ export const CohortWorkspaceView: React.FC<{ cohortId: string }> = ({ cohortId }
       course: fallbackCourse,
       sessions,
       materials,
+      finalExamPassed: false,
     },
     [cohortId]
+  );
+
+  const { data: finalExamResult } = useAsyncData(
+    () => assessmentApi.getAssessmentResult(`final-exam-${fallbackCohort.id}`),
+    [fallbackCohort.id]
   );
 
   const cohort = workspaceData.cohort ?? fallbackCohort;
@@ -65,7 +73,9 @@ export const CohortWorkspaceView: React.FC<{ cohortId: string }> = ({ cohortId }
 
   const completedCount = sessions.filter((s) => s.isCompleted).length;
   const primaryCert = Object.values(certificates)[0];
-  const isFinalExamLocked = hasStudentPassedFinalExam();
+  const isFinalExamLocked = Boolean(
+    workspaceData.finalExamPassed || finalExamResult?.hasPassedFinalExam
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-28 space-y-6">
@@ -438,97 +448,109 @@ export const CohortWorkspaceView: React.FC<{ cohortId: string }> = ({ cohortId }
 
       {/* TAB 3: THI CUỐI KHÓA (25 CÂU) & CHỨNG CHỈ TỐT NGHIỆP */}
       {activeTab === 'CERTIFICATE' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-6 rounded-xl bg-white dark:bg-[#111A15] border border-[#E2ECE7] dark:border-[#1E2D24] p-6 space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#D1FAE5] dark:bg-emerald-950 text-[#065F46] dark:text-emerald-300 font-mono text-xs font-bold">
-              PHÒNG THI CUỐI KHÓA · 25 CÂU TRẮC NGHIỆM (A, B, C, D)
-            </div>
-            <h2 className="text-xl font-bold text-[#0F172A] dark:text-[#ECFDF5]">
-              Kỳ Thi Tốt Nghiệp Cuối Khóa &amp; Nhận 4 Lượt Luyện Phỏng Vấn AI
-            </h2>
-            <p className="text-xs sm:text-sm text-[#475569] dark:text-[#94A3B8] leading-relaxed">
-              Để đảm bảo giá trị thực chất và sự công bằng cho tấm bằng tốt nghiệp của bạn, bài thi cuối khóa gồm{' '}
-              <strong>25 câu trắc nghiệm 4 đáp án (A, B, C, D)</strong> được thực hiện trong chế độ toàn màn hình có Camera đồng hành giám sát.
-            </p>
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-6 rounded-xl bg-white dark:bg-[#111A15] border border-[#E2ECE7] dark:border-[#1E2D24] p-6 space-y-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#D1FAE5] dark:bg-emerald-950 text-[#065F46] dark:text-emerald-300 font-mono text-xs font-bold">
+                PHÒNG THI CUỐI KHÓA · 25 CÂU TRẮC NGHIỆM (A, B, C, D)
+              </div>
+              <h2 className="text-xl font-bold text-[#0F172A] dark:text-[#ECFDF5]">
+                Kỳ Thi Tốt Nghiệp Cuối Khóa &amp; Nhận 4 Lượt Luyện Phỏng Vấn AI
+              </h2>
+              <p className="text-xs sm:text-sm text-[#475569] dark:text-[#94A3B8] leading-relaxed">
+                Để đảm bảo giá trị thực chất và sự công bằng cho tấm bằng tốt nghiệp của bạn, bài thi cuối khóa gồm{' '}
+                <strong>25 câu trắc nghiệm 4 đáp án (A, B, C, D)</strong> được thực hiện trong chế độ toàn màn hình có Camera đồng hành giám sát.
+              </p>
 
-            <div className="p-4 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] space-y-2 text-xs">
-              <div className="font-semibold text-[#0F172A] dark:text-[#ECFDF5]">
-                Trạng thái điều kiện dự thi của bạn:
-              </div>
-              <div className="flex items-center justify-between">
-                <span>• Số buổi học đã hoàn thành (xem &ge; 80% + đạt bài tập 10 câu):</span>
-                <span className="font-mono font-bold text-[#10B981]">
-                  {completedCount}/{sessions.length} buổi
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>• Kiểm tra Camera &amp; Micrô trước giờ thi:</span>
-                <span className="font-mono font-bold text-[#10B981]">Đã sẵn sàng</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>• Phần thưởng khi vượt qua kỳ thi tốt nghiệp:</span>
-                <span className="font-mono font-bold text-[#059669] dark:text-[#34D399]">
-                  Chứng chỉ số + 4 Credits Phỏng vấn AI
-                </span>
-              </div>
-            </div>
-
-            {isFinalExamLocked ? (
-              <div className="space-y-3">
-                <div className="p-3.5 rounded-xl bg-[#D1FAE5] dark:bg-emerald-950/90 border border-[#10B981] text-xs text-[#065F46] dark:text-emerald-300 font-semibold flex items-center justify-between gap-2">
-                  <span>
-                    ✓ Bạn đã vượt qua kỳ thi tốt nghiệp cuối khóa, nhận Chứng chỉ và +4 Credits phỏng vấn (Đã khóa thi lại để bảo toàn kết quả).
+              <div className="p-4 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] space-y-2 text-xs">
+                <div className="font-semibold text-[#0F172A] dark:text-[#ECFDF5]">
+                  Trạng thái điều kiện dự thi của bạn:
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• Số buổi học đã hoàn thành (xem &ge; 80% + đạt bài tập 10 câu):</span>
+                  <span className="font-mono font-bold text-[#10B981]">
+                    {completedCount}/{sessions.length} buổi
                   </span>
                 </div>
+                <div className="flex items-center justify-between">
+                  <span>• Kiểm tra Camera &amp; Micrô trước giờ thi:</span>
+                  <span className="font-mono font-bold text-[#10B981]">Đã sẵn sàng</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>• Phần thưởng khi vượt qua kỳ thi tốt nghiệp:</span>
+                  <span className="font-mono font-bold text-[#059669] dark:text-[#34D399]">
+                    Bằng Tốt Nghiệp PDF + 4 Credits Phỏng vấn AI
+                  </span>
+                </div>
+              </div>
+
+              {isFinalExamLocked ? (
+                <div className="space-y-3">
+                  <div className="p-3.5 rounded-xl bg-[#D1FAE5] dark:bg-emerald-950/90 border border-[#10B981] text-xs text-[#065F46] dark:text-emerald-300 font-semibold flex items-center justify-between gap-2">
+                    <span>
+                      ✓ Bạn đã vượt qua kỳ thi tốt nghiệp cuối khóa, nhận Chứng chỉ và +4 Credits phỏng vấn (Đã khóa thi lại để bảo toàn kết quả).
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/app/assessments/final-exam-k01/results')}
+                    className="w-full py-3 px-5 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#10B981] text-xs sm:text-sm font-bold text-[#059669] dark:text-[#34D399] cursor-pointer"
+                  >
+                    Xem lại Bảng điểm Kỳ thi Tốt nghiệp (25 câu) →
+                  </button>
+                </div>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => navigate('/app/assessments/final-exam-k01/results')}
-                  className="w-full py-3 px-5 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#10B981] text-xs sm:text-sm font-bold text-[#059669] dark:text-[#34D399] cursor-pointer"
+                  onClick={() => navigate('/app/exams/final-exam-k01/proctored')}
+                  className="w-full py-3 px-5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs sm:text-sm font-bold cursor-pointer"
                 >
-                  Xem lại Bảng điểm Kỳ thi Tốt nghiệp (25 câu) →
+                  Vào Phòng Thi Cuối Khóa (25 Câu · Có Camera Giám Sát) →
+                </button>
+              )}
+            </div>
+
+            {primaryCert && (
+              <div className="lg:col-span-6 rounded-xl bg-white dark:bg-[#111A15] border-2 border-[#10B981] p-6 space-y-5">
+                <div className="flex items-center gap-3.5">
+                  <CompetencyVerifiedShield className="w-14 h-14 shrink-0" />
+                  <div>
+                    <div className="text-xs font-mono font-bold text-[#059669] dark:text-[#34D399]">
+                      CHỨNG CHỈ TỐT NGHIỆP CÁ NHÂN · ĐÃ CẤP CHÍNH CHỦ
+                    </div>
+                    <h2 className="text-lg font-bold text-[#0F172A] dark:text-[#ECFDF5]">
+                      {primaryCert.courseTitle}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] space-y-2 text-xs font-mono">
+                  <div>Học viên sở hữu: {primaryCert.studentName}</div>
+                  <div>Mã chứng chỉ: {primaryCert.certificateCode}</div>
+                  <div>Điểm tổng kết: {primaryCert.finalScore}/100 (Loại Xuất Sắc)</div>
+                  <div className="text-[#059669] dark:text-[#34D399] truncate">
+                    Mã xác thực: {primaryCert.verificationSignature}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStudentSidebarTab('CERTIFICATES_ORDERS');
+                    navigate('/app');
+                  }}
+                  className="w-full py-3 px-5 rounded-xl bg-[#0F172A] dark:bg-white text-white dark:text-[#0F172A] text-xs sm:text-sm font-bold cursor-pointer"
+                >
+                  Mở Bằng Tốt Nghiệp Trong Góc Học Tập →
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => navigate('/app/exams/final-exam-k01/proctored')}
-                className="w-full py-3 px-5 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs sm:text-sm font-bold cursor-pointer"
-              >
-                Vào Phòng Thi Cuối Khóa (25 Câu · Có Camera Giám Sát) →
-              </button>
             )}
           </div>
 
-          <div className="lg:col-span-6 rounded-xl bg-white dark:bg-[#111A15] border-2 border-[#10B981] p-6 space-y-5">
-            <div className="flex items-center gap-3.5">
-              <CompetencyVerifiedShield className="w-14 h-14 shrink-0" />
-              <div>
-                <div className="text-xs font-mono font-bold text-[#059669] dark:text-[#34D399]">
-                  CHỨNG CHỈ TỐT NGHIỆP CỦA BẠN · ĐÃ CẤP
-                </div>
-                <h2 className="text-lg font-bold text-[#0F172A] dark:text-[#ECFDF5]">
-                  {primaryCert.courseTitle}
-                </h2>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-[#F7FBF9] dark:bg-[#090F0C] border border-[#E2ECE7] dark:border-[#1E2D24] space-y-2 text-xs font-mono">
-              <div>Học viên: {primaryCert.studentName}</div>
-              <div>Mã chứng chỉ: {primaryCert.certificateCode}</div>
-              <div>Điểm tổng kết: {primaryCert.finalScore}/100</div>
-              <div className="text-[#059669] dark:text-[#34D399] truncate">
-                Mã xác thực: {primaryCert.verificationSignature}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigate(`/verify/${primaryCert.certificateCode}`)}
-              className="w-full py-3 px-5 rounded-xl bg-[#0F172A] dark:bg-white text-white dark:text-[#0F172A] text-xs sm:text-sm font-bold cursor-pointer"
-            >
-              Mở Trang Xác Thực Chứng Chỉ Tốt Nghiệp →
-            </button>
-          </div>
+          {/* Full Ceremonial Diploma Preview & PDF Export for Learner */}
+          {primaryCert && (
+            <GraduationCertificateDiploma certificate={primaryCert} showActionHeader={true} />
+          )}
         </div>
       )}
     </div>

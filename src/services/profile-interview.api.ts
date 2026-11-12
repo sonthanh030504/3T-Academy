@@ -3,6 +3,7 @@ import {
   CvParsedData,
   CvScreeningResult,
   InterviewEvaluationReport,
+  StudentResumeData,
   StudentSkillStateRecord,
 } from '../types/domain';
 
@@ -18,11 +19,13 @@ export interface ProfileAndSkillsResponse {
     userId?: string;
     fullName: string;
     headline: string;
+    bio?: string;
     email: string;
     phone: string;
     githubUrl: string;
     linkedinUrl: string;
     careerObjective: string;
+    careerGoal?: string;
     latestCvFileName: string;
     latestCvUpdatedAt: string;
     interviewCredits: number;
@@ -46,15 +49,48 @@ export const profileInterviewApi = {
       method: 'GET',
     }),
 
-  uploadAndParseCv: (file: File) =>
-    httpRequest<{
+  uploadAndParseCv: (
+    fileOrNameOrPayload: File | string | Partial<StudentResumeData>,
+    resumeData?: Partial<StudentResumeData>
+  ) => {
+    const isFile =
+      typeof fileOrNameOrPayload === 'object' &&
+      fileOrNameOrPayload !== null &&
+      'name' in fileOrNameOrPayload &&
+      typeof (fileOrNameOrPayload as File).name === 'string' &&
+      'size' in fileOrNameOrPayload;
+
+    const isResumePayloadObject =
+      typeof fileOrNameOrPayload === 'object' &&
+      fileOrNameOrPayload !== null &&
+      !isFile;
+
+    const fileName =
+      typeof fileOrNameOrPayload === 'string'
+        ? fileOrNameOrPayload
+        : isFile
+        ? (fileOrNameOrPayload as File).name
+        : 'CV_Ho_So_Nang_Luc_2026.pdf';
+
+    const size = isFile ? (fileOrNameOrPayload as File).size : 245000;
+    const effectiveResumeData = isResumePayloadObject
+      ? (fileOrNameOrPayload as Partial<StudentResumeData>)
+      : resumeData;
+
+    return httpRequest<{
       fileName: string;
       updatedAt: string;
       cvParsedData: CvParsedData;
     }>('/me/cv/upload', {
       method: 'POST',
-      body: JSON.stringify({ fileName: file.name, size: file.size }),
-    }),
+      body: JSON.stringify({
+        fileName,
+        size,
+        mode: effectiveResumeData ? 'SAVE_RESUME' : 'PARSE_PDF',
+        resumeData: effectiveResumeData,
+      }),
+    });
+  },
 
   screenCvAgainstJd: (
     targetLevel: string,
